@@ -1,0 +1,6 @@
+{
+  "summary":  "Implementation plan for BiblioVOS Studio, a unified multi-database bibliometric analysis and VOSviewer science mapping web application. Covers multi-format file parsing (Scopus, Web of Science, PubMed, OpenAlex, CrossRef, Dimensions, RIS, BibTeX), live API search, smart deduplication with an interactive conflict review log, VOSviewer interactive maps (Network, Overlay, Density), and Bibliometrix (Biblioshiny) analytics (Three-Field Sankey Plot, Bradford's & Lotka's Laws, H/G/M-Index, Thematic Map, Trend Topics, RPYS, and Historiograph).",
+  "updatedAt":  "2026-11-11T06:56:21.935014340Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

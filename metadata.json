@@ -1,0 +1,6 @@
+{
+  "name": "BiblioVOS Studio",
+  "description": "Unified multi-database bibliometric analysis and VOSviewer science mapping platform supporting Scopus, Web of Science, PubMed, OpenAlex, CrossRef, Dimensions, RIS, and BibTeX.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
