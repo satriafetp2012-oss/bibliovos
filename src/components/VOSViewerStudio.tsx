@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import {
   BibRecord,
+  StratifyDimension,
   VOSAnalysisType,
   VOSNode,
   VOSNodeScaleBy,
@@ -23,11 +24,14 @@ import {
 } from '../types/bibliometrics';
 import {
   buildVOSNetwork,
+  partitionCorpusByStrata,
   VOS_CLUSTER_COLORS
 } from '../utils/bibliometricEngine';
 
 interface VOSViewerStudioProps {
   records: BibRecord[];
+  stratifyBy?: StratifyDimension;
+  onChangeStratifyBy?: (dim: StratifyDimension) => void;
 }
 
 function interpolateOverlayColor(t: number): string {
@@ -55,7 +59,10 @@ function hexToRgb(hex: string): [number, number, number] {
   return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
 }
 
-export const VOSViewerStudio: React.FC<VOSViewerStudioProps> = ({ records }) => {
+export const VOSViewerStudio: React.FC<VOSViewerStudioProps> = ({
+  records,
+  stratifyBy = 'none'
+}) => {
   const [viewMode, setViewMode] = useState<VOSViewMode>('network');
   const [analysisType, setAnalysisType] = useState<VOSAnalysisType>('co-occurrence');
   const [unit, setUnit] = useState<VOSUnitOfAnalysis>('all-keywords');
@@ -72,6 +79,18 @@ export const VOSViewerStudio: React.FC<VOSViewerStudioProps> = ({ records }) => 
   const [selectedCluster, setSelectedCluster] = useState<number | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [selectedStratumLabel, setSelectedStratumLabel] = useState<string>('ALL');
+
+  const strata = useMemo(
+    () => partitionCorpusByStrata(records, stratifyBy === 'none' ? 'funding-status' : stratifyBy),
+    [records, stratifyBy]
+  );
+
+  const stratifiedRecords = useMemo(() => {
+    if (selectedStratumLabel === 'ALL') return records;
+    const found = strata.find((s) => s.label === selectedStratumLabel);
+    return found ? found.records : records;
+  }, [records, strata, selectedStratumLabel]);
 
   // Pan & Zoom state
   const [zoom, setZoom] = useState(1);
@@ -97,8 +116,8 @@ export const VOSViewerStudio: React.FC<VOSViewerStudioProps> = ({ records }) => 
   };
 
   const network = useMemo(
-    () => buildVOSNetwork(records, analysisType, unit, minOccurrences, 55, resolution),
-    [records, analysisType, unit, minOccurrences, resolution]
+    () => buildVOSNetwork(stratifiedRecords, analysisType, unit, minOccurrences, 55, resolution),
+    [stratifiedRecords, analysisType, unit, minOccurrences, resolution]
   );
 
   const nodesWithOffsets: VOSNode[] = useMemo(
@@ -261,6 +280,15 @@ export const VOSViewerStudio: React.FC<VOSViewerStudioProps> = ({ records }) => 
         const span = Math.max(1, network.maxCitations - network.minCitations);
         return interpolateOverlayColor((node.avgCitations - network.minCitations) / span);
       }
+      if (overlayColorBy === 'fundedShare') {
+        return interpolateOverlayColor((node.fundedSharePct ?? 0) / 100);
+      }
+      if (overlayColorBy === 'openAccessShare') {
+        return interpolateOverlayColor((node.openAccessSharePct ?? 0) / 100);
+      }
+      if (overlayColorBy === 'mcpShare') {
+        return interpolateOverlayColor((node.mcpSharePct ?? 0) / 100);
+      }
       return interpolateOverlayColor(Math.min(1, node.normCitations / 2.2));
     }
     return VOS_CLUSTER_COLORS[(node.cluster - 1) % VOS_CLUSTER_COLORS.length];
@@ -391,6 +419,7 @@ export const VOSViewerStudio: React.FC<VOSViewerStudioProps> = ({ records }) => 
                   <option value="all-keywords">All Keywords (Author + Index/MeSH)</option>
                   <option value="author-keywords">Author Keywords (DE)</option>
                   <option value="index-keywords">Keywords Plus / MeSH (ID)</option>
+                  <option value="research-subjects">Research Subjects / Categories (SC/WC)</option>
                 </>
               )}
               {analysisType === 'co-authorship' && (
@@ -398,6 +427,7 @@ export const VOSViewerStudio: React.FC<VOSViewerStudioProps> = ({ records }) => 
                   <option value="authors">Authors</option>
                   <option value="countries">Countries</option>
                   <option value="organizations">Organizations / Affiliations</option>
+                  <option value="funding-agencies">Funding Agencies / Sponsors (FU)</option>
                 </>
               )}
               {(analysisType === 'citation' || analysisType === 'bibliographic-coupling') && (
@@ -476,6 +506,27 @@ export const VOSViewerStudio: React.FC<VOSViewerStudioProps> = ({ records }) => 
             </select>
           </div>
 
+          <div>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Stratified Cohort Subset
+            </label>
+            <select
+              value={selectedStratumLabel}
+              onChange={(e) => {
+                setSelectedStratumLabel(e.target.value);
+                setSelectedNodeId(null);
+              }}
+              className="w-full px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md"
+            >
+              <option value="ALL">All Cohorts ({records.length} docs)</option>
+              {strata.map((st) => (
+                <option key={st.id} value={st.label}>
+                  {st.label} ({st.documents} docs)
+                </option>
+              ))}
+            </select>
+          </div>
+
           {viewMode === 'overlay' && (
             <div>
               <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
@@ -489,6 +540,9 @@ export const VOSViewerStudio: React.FC<VOSViewerStudioProps> = ({ records }) => 
                 <option value="avgYear">Average Publication Year</option>
                 <option value="avgCitations">Average Citations</option>
                 <option value="normCitations">Normalized Citations</option>
+                <option value="fundedShare">Grant-Funded Share (%) [FU]</option>
+                <option value="openAccessShare">Open Access Share (%) [OA]</option>
+                <option value="mcpShare">Intl. Collaboration Share (%) [MCP]</option>
               </select>
             </div>
           )}
@@ -907,6 +961,12 @@ export const VOSViewerStudio: React.FC<VOSViewerStudioProps> = ({ records }) => 
                     ? 'Avg. Publication Year'
                     : overlayColorBy === 'avgCitations'
                     ? 'Avg. Citations'
+                    : overlayColorBy === 'fundedShare'
+                    ? 'Grant-Funded Share (%)'
+                    : overlayColorBy === 'openAccessShare'
+                    ? 'Open Access Share (%)'
+                    : overlayColorBy === 'mcpShare'
+                    ? 'Intl. Collaboration MCP (%)'
                     : 'Normalized Citations'}
                 </div>
                 <div
@@ -922,6 +982,10 @@ export const VOSViewerStudio: React.FC<VOSViewerStudioProps> = ({ records }) => 
                       ? network.minYear.toFixed(1)
                       : overlayColorBy === 'avgCitations'
                       ? network.minCitations.toFixed(0)
+                      : overlayColorBy === 'fundedShare' ||
+                        overlayColorBy === 'openAccessShare' ||
+                        overlayColorBy === 'mcpShare'
+                      ? '0%'
                       : '0.50'}
                   </span>
                   <span>
@@ -929,6 +993,10 @@ export const VOSViewerStudio: React.FC<VOSViewerStudioProps> = ({ records }) => 
                       ? ((network.minYear + network.maxYear) / 2).toFixed(1)
                       : overlayColorBy === 'avgCitations'
                       ? ((network.minCitations + network.maxCitations) / 2).toFixed(0)
+                      : overlayColorBy === 'fundedShare' ||
+                        overlayColorBy === 'openAccessShare' ||
+                        overlayColorBy === 'mcpShare'
+                      ? '50%'
                       : '1.25'}
                   </span>
                   <span>
@@ -936,6 +1004,10 @@ export const VOSViewerStudio: React.FC<VOSViewerStudioProps> = ({ records }) => 
                       ? network.maxYear.toFixed(1)
                       : overlayColorBy === 'avgCitations'
                       ? network.maxCitations.toFixed(0)
+                      : overlayColorBy === 'fundedShare' ||
+                        overlayColorBy === 'openAccessShare' ||
+                        overlayColorBy === 'mcpShare'
+                      ? '100%'
                       : '2.20+'}
                   </span>
                 </div>

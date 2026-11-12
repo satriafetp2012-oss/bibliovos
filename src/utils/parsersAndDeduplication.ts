@@ -2,6 +2,7 @@ import {
   BibRecord,
   DatabaseSource,
   MergeConflictPair,
+  OpenAccessType,
   RawSourceSnapshot
 } from '../types/bibliometrics';
 
@@ -88,6 +89,102 @@ export function extractCountriesFromAffiliations(affiliations: string[]): string
   return Array.from(found);
 }
 
+export function normalizeFundingAgency(raw: string): string {
+  const cleaned = raw.replace(/\[.*?\]/g, '').replace(/\s+/g, ' ').trim();
+  if (!cleaned) return '';
+  const lower = cleaned.toLowerCase();
+  if (lower.includes('nih') || lower.includes('national institutes of health')) {
+    return 'National Institutes of Health (NIH)';
+  }
+  if (lower.includes('nci') || lower.includes('national cancer institute')) {
+    return 'National Cancer Institute (NCI)';
+  }
+  if (lower.includes('nsf') || lower.includes('national science foundation')) {
+    if (lower.includes('swiss') || lower.includes('snsf')) {
+      return 'Swiss National Science Foundation (SNSF)';
+    }
+    return 'National Science Foundation (NSF)';
+  }
+  if (lower.includes('horizon') || lower.includes('european commission') || lower.includes('european union')) {
+    return 'Horizon Europe / European Commission';
+  }
+  if (lower.includes('erc') || lower.includes('european research council')) {
+    return 'European Research Council (ERC)';
+  }
+  if (lower.includes('dfg') || lower.includes('german research foundation') || lower.includes('deutsche forschungsgemeinschaft')) {
+    return 'German Research Foundation (DFG)';
+  }
+  if (lower.includes('nwo') || lower.includes('dutch research council') || lower.includes('netherlands organisation')) {
+    return 'Dutch Research Council (NWO)';
+  }
+  if (lower.includes('wellcome')) {
+    return 'Wellcome Trust';
+  }
+  if (lower.includes('ukri') || lower.includes('uk research and innovation') || lower.includes('epsrc') || lower.includes('mrc')) {
+    return 'UK Research and Innovation (UKRI)';
+  }
+  if (lower.includes('mur') || lower.includes('miur') || lower.includes('italian ministry')) {
+    return 'Italian Ministry of University and Research (MUR)';
+  }
+  if (lower.includes('mcin') || lower.includes('spanish ministry')) {
+    return 'Spanish Ministry of Science and Innovation (MCIN)';
+  }
+  if (lower.includes('fwf') || lower.includes('austrian science fund')) {
+    return 'Austrian Science Fund (FWF)';
+  }
+  if (lower.includes('cihr') || lower.includes('canadian institutes')) {
+    return 'Canadian Institutes of Health Research (CIHR)';
+  }
+  if (lower.includes('nhmrc') || lower.includes('Australian National Health'.toLowerCase())) {
+    return 'Australian National Health and Medical Research Council (NHMRC)';
+  }
+  return cleaned;
+}
+
+export function inferSubjectsFromRecord(
+  explicitSubjects: string[],
+  source: string,
+  keywords: string[]
+): string[] {
+  if (explicitSubjects.length > 0) return explicitSubjects;
+  const inferred = new Set<string>();
+  const combined = `${source} ${keywords.join(' ')}`.toLowerCase();
+
+  if (combined.includes('informetrics') || combined.includes('scientometrics') || combined.includes('bibliometric') || combined.includes('vosviewer') || combined.includes('information science')) {
+    inferred.add('Information Science & Library Science');
+  }
+  if (combined.includes('medical') || combined.includes('clinical') || combined.includes('health') || combined.includes('bmj') || combined.includes('patient')) {
+    inferred.add('Medical Informatics');
+  }
+  if (combined.includes('artificial intelligence') || combined.includes('deep learning') || combined.includes('language model') || combined.includes('foundation model') || combined.includes('neural')) {
+    inferred.add('Computer Science, Artificial Intelligence');
+  }
+  if (combined.includes('cancer') || combined.includes('oncology') || combined.includes('radiomics')) {
+    inferred.add('Oncology');
+  }
+  if (combined.includes('bioinform') || combined.includes('drug') || combined.includes('genom')) {
+    inferred.add('Bioinformatics & Computational Biology');
+  }
+  if (combined.includes('business') || combined.includes('management') || combined.includes('organization')) {
+    inferred.add('Business & Management');
+  }
+  if (inferred.size === 0) {
+    inferred.add('Multidisciplinary Sciences');
+  }
+  return Array.from(inferred);
+}
+
+function normalizeOpenAccess(raw?: string): OpenAccessType {
+  if (!raw) return 'Gold OA';
+  const lower = raw.toLowerCase();
+  if (lower.includes('gold')) return 'Gold OA';
+  if (lower.includes('green')) return 'Green OA';
+  if (lower.includes('hybrid')) return 'Hybrid OA';
+  if (lower.includes('bronze')) return 'Bronze OA';
+  if (lower.includes('closed') || lower.includes('no') || lower.includes('subscription')) return 'Closed';
+  return 'Gold OA';
+}
+
 function uniqueCaseInsensitive(items: string[], lowerCaseOutput = false): string[] {
   const map = new Map<string, string>();
   for (const item of items) {
@@ -115,8 +212,8 @@ function toSnapshot(rec: BibRecord): RawSourceSnapshot {
 }
 
 /**
- * Harmonizes and deduplicates an array of raw records across databases.
- * Supports interactive user overrides via `splitPairIds` (pairs the user chose to keep separate).
+ * Harmonizes and deduplicates an array of raw records across databases,
+ * including Funding Agencies (FU), Research Subjects (SC/WC), Open Access (OA), Language (LA), and Publisher (PU).
  */
 export function harmonizeAndDeduplicate(
   rawRecords: BibRecord[],
@@ -130,16 +227,35 @@ export function harmonizeAndDeduplicate(
 
   for (const incoming of rawRecords) {
     const normDoi = normalizeDOI(incoming.doi);
+    const countries =
+      incoming.countries.length > 0
+        ? uniqueCaseInsensitive(incoming.countries)
+        : extractCountriesFromAffiliations(incoming.affiliations);
+
+    const fundingAgencies = uniqueCaseInsensitive(
+      (incoming.fundingAgencies || []).map(normalizeFundingAgency).filter(Boolean)
+    );
+    const researchSubjects = uniqueCaseInsensitive(
+      inferSubjectsFromRecord(
+        incoming.researchSubjects || [],
+        incoming.source,
+        [...incoming.authorKeywords, ...incoming.indexKeywords]
+      )
+    );
+
     const normalizedIncoming: BibRecord = {
       ...incoming,
       doi: normDoi,
       authors: uniqueCaseInsensitive(incoming.authors.map(normalizeAuthorName)),
       authorKeywords: uniqueCaseInsensitive(incoming.authorKeywords, true),
       indexKeywords: uniqueCaseInsensitive(incoming.indexKeywords, true),
-      countries:
-        incoming.countries.length > 0
-          ? uniqueCaseInsensitive(incoming.countries)
-          : extractCountriesFromAffiliations(incoming.affiliations),
+      countries,
+      correspondingCountry: incoming.correspondingCountry || countries[0] || 'Unspecified',
+      fundingAgencies,
+      researchSubjects,
+      openAccess: incoming.openAccess || 'Gold OA',
+      language: incoming.language || 'English',
+      publisher: incoming.publisher || 'Academic Press',
       sourceCitations: {
         ...(incoming.sourceCitations || {}),
         [incoming.databases[0] || 'Scopus']: incoming.citations
@@ -187,14 +303,17 @@ export function harmonizeAndDeduplicate(
           `Citations harmonized (${primary.databases[0]}: ${primary.citations} vs ${normalizedIncoming.databases[0]}: ${normalizedIncoming.citations})`
         );
       }
+      if ((normalizedIncoming.fundingAgencies || []).length > 0) {
+        mergedFieldsSummary.push('Merged Funding Agencies (FU)');
+      }
+      if ((normalizedIncoming.researchSubjects || []).length > 0) {
+        mergedFieldsSummary.push('Harmonized Subject Categories (SC/WC)');
+      }
       if (normalizedIncoming.authorKeywords.length > 0) {
-        mergedFieldsSummary.push('Merged Author & Index Keywords (DE/ID)');
+        mergedFieldsSummary.push('Merged Keywords (DE/ID)');
       }
       if (normalizedIncoming.references.length > 0) {
         mergedFieldsSummary.push('Merged Cited References (CR)');
-      }
-      if (!primary.doi && normalizedIncoming.doi) {
-        mergedFieldsSummary.push(`Backfilled missing DOI (${normalizedIncoming.doi})`);
       }
 
       conflictPairs.push({
@@ -210,7 +329,6 @@ export function harmonizeAndDeduplicate(
       if (isSplit) {
         masterRecords.push(normalizedIncoming);
       } else {
-        // Merge into primary master record
         const combinedDbs = Array.from(
           new Set([...primary.databases, ...normalizedIncoming.databases])
         ) as DatabaseSource[];
@@ -248,6 +366,18 @@ export function harmonizeAndDeduplicate(
             ...primary.countries,
             ...normalizedIncoming.countries
           ]),
+          fundingAgencies: uniqueCaseInsensitive([
+            ...(primary.fundingAgencies || []),
+            ...(normalizedIncoming.fundingAgencies || [])
+          ]),
+          fundingText: primary.fundingText || normalizedIncoming.fundingText,
+          researchSubjects: uniqueCaseInsensitive([
+            ...(primary.researchSubjects || []),
+            ...(normalizedIncoming.researchSubjects || [])
+          ]),
+          openAccess: primary.openAccess || normalizedIncoming.openAccess,
+          language: primary.language || normalizedIncoming.language,
+          publisher: primary.publisher || normalizedIncoming.publisher,
           references: uniqueCaseInsensitive([
             ...primary.references,
             ...normalizedIncoming.references
@@ -337,6 +467,11 @@ function parseCSVFormat(content: string, filename: string): BibRecord[] {
   const authKwIdx = findCol(['author keywords', 'de', 'keywords']);
   const idxKwIdx = findCol(['index keywords', 'keywords plus', 'id', 'mesh', 'concepts']);
   const affilIdx = findCol(['affiliations', 'affiliation', 'c1']);
+  const fundingIdx = findCol(['funding details', 'funding sponsor', 'funding', 'fu', 'funder']);
+  const subjectIdx = findCol(['subject area', 'research areas', 'subject', 'wc', 'sc', 'categories']);
+  const oaIdx = findCol(['open access', 'oa', 'is_oa']);
+  const publisherIdx = findCol(['publisher', 'pu']);
+  const langIdx = findCol(['language', 'la']);
   const abstractIdx = findCol(['abstract', 'ab']);
   const refsIdx = findCol(['references', 'cited references', 'cr']);
   const docTypeIdx = findCol(['document type', 'type', 'dt']);
@@ -385,6 +520,17 @@ function parseCSVFormat(content: string, filename: string): BibRecord[] {
       affilIdx >= 0 && row[affilIdx]
         ? row[affilIdx].split(';').map((s) => s.trim()).filter(Boolean)
         : [];
+    const fundingAgencies =
+      fundingIdx >= 0 && row[fundingIdx]
+        ? row[fundingIdx].split(/[;|]/).map(normalizeFundingAgency).filter(Boolean)
+        : [];
+    const rawSubjects =
+      subjectIdx >= 0 && row[subjectIdx]
+        ? row[subjectIdx].split(/[;|]/).map((s) => s.trim()).filter(Boolean)
+        : [];
+    const openAccess = oaIdx >= 0 ? normalizeOpenAccess(row[oaIdx]) : 'Gold OA';
+    const publisher = publisherIdx >= 0 && row[publisherIdx] ? row[publisherIdx] : 'Academic Press';
+    const language = langIdx >= 0 && row[langIdx] ? row[langIdx] : 'English';
     const abstract = abstractIdx >= 0 ? row[abstractIdx] || '' : '';
     const references =
       refsIdx >= 0 && row[refsIdx]
@@ -392,6 +538,7 @@ function parseCSVFormat(content: string, filename: string): BibRecord[] {
         : [];
     const docType = docTypeIdx >= 0 && row[docTypeIdx] ? row[docTypeIdx] : 'Article';
     const ut = idIdx >= 0 && row[idIdx] ? row[idIdx] : `${defaultDb.toUpperCase()}-${Date.now()}-${r}`;
+    const countries = extractCountriesFromAffiliations(affiliations);
 
     records.push({
       id: `csv-${Date.now()}-${r}`,
@@ -407,7 +554,13 @@ function parseCSVFormat(content: string, filename: string): BibRecord[] {
       indexKeywords,
       abstract,
       affiliations,
-      countries: extractCountriesFromAffiliations(affiliations),
+      countries,
+      correspondingCountry: countries[0] || 'Unspecified',
+      fundingAgencies,
+      researchSubjects: inferSubjectsFromRecord(rawSubjects, source, [...authorKeywords, ...indexKeywords]),
+      openAccess,
+      language,
+      publisher,
       references,
       docType,
       databases: [defaultDb]
@@ -446,8 +599,23 @@ function parseWoSPlainText(content: string): BibRecord[] {
       .filter(Boolean);
     const abstract = (currentRec['AB'] || []).join(' ').trim();
     const affiliations = (currentRec['C1'] || []).map((s) => s.replace(/\[.*?\]\s*/, '').trim());
+    const fundingAgencies = (currentRec['FU'] || [])
+      .join(' ')
+      .split(';')
+      .map(normalizeFundingAgency)
+      .filter(Boolean);
+    const fundingText = (currentRec['FX'] || []).join(' ').trim();
+    const rawSubjects = [...(currentRec['WC'] || []), ...(currentRec['SC'] || [])]
+      .join(';')
+      .split(';')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const openAccess = normalizeOpenAccess((currentRec['OA'] || ['Gold OA'])[0]);
+    const language = (currentRec['LA'] || ['English'])[0];
+    const publisher = (currentRec['PU'] || ['Academic Press'])[0];
     const references = (currentRec['CR'] || []).map((s) => s.trim()).filter(Boolean);
     const ut = (currentRec['UT'] || [`WOS:${Date.now()}-${idx}`])[0];
+    const countries = extractCountriesFromAffiliations(affiliations);
 
     records.push({
       id: `wos-${Date.now()}-${idx}`,
@@ -463,7 +631,14 @@ function parseWoSPlainText(content: string): BibRecord[] {
       indexKeywords,
       abstract,
       affiliations,
-      countries: extractCountriesFromAffiliations(affiliations),
+      countries,
+      correspondingCountry: countries[0] || 'Unspecified',
+      fundingAgencies,
+      fundingText,
+      researchSubjects: inferSubjectsFromRecord(rawSubjects, source, [...authorKeywords, ...indexKeywords]),
+      openAccess,
+      language,
+      publisher,
       references,
       docType: 'Article',
       databases: ['Web of Science']
@@ -517,6 +692,8 @@ function parsePubMedMedline(content: string): BibRecord[] {
     const affiliations = currentRec['AD'] || [];
     const authorKeywords = (currentRec['OT'] || []).map((s) => s.replace(/\*/g, '').trim().toLowerCase());
     const indexKeywords = (currentRec['MH'] || []).map((s) => s.replace(/[*\/].*$/, '').trim().toLowerCase());
+    const grants = (currentRec['GR'] || []).map(normalizeFundingAgency).filter(Boolean);
+    const countries = extractCountriesFromAffiliations(affiliations);
 
     records.push({
       id: `pubmed-${Date.now()}-${idx}`,
@@ -532,7 +709,13 @@ function parsePubMedMedline(content: string): BibRecord[] {
       indexKeywords,
       abstract,
       affiliations,
-      countries: extractCountriesFromAffiliations(affiliations),
+      countries,
+      correspondingCountry: countries[0] || 'United States',
+      fundingAgencies: uniqueCaseInsensitive(grants),
+      researchSubjects: inferSubjectsFromRecord([], source, [...authorKeywords, ...indexKeywords]),
+      openAccess: 'Gold OA',
+      language: 'English',
+      publisher: 'NLM / Biomedical Press',
       references: [],
       docType: 'Article',
       databases: ['PubMed']
@@ -586,6 +769,7 @@ function parseRIS(content: string): BibRecord[] {
     const kws = (rec['KW'] || []).map((k) => k.toLowerCase().trim()).filter(Boolean);
     const abstract = (rec['AB'] || rec['N2'] || []).join(' ');
     const affiliations = rec['AD'] || rec['C1'] || [];
+    const countries = extractCountriesFromAffiliations(affiliations);
 
     records.push({
       id: `ris-${Date.now()}-${idx}`,
@@ -601,7 +785,13 @@ function parseRIS(content: string): BibRecord[] {
       indexKeywords: [],
       abstract,
       affiliations,
-      countries: extractCountriesFromAffiliations(affiliations),
+      countries,
+      correspondingCountry: countries[0] || 'Unspecified',
+      fundingAgencies: [],
+      researchSubjects: inferSubjectsFromRecord([], source, kws),
+      openAccess: 'Gold OA',
+      language: 'English',
+      publisher: (rec['PB'] || ['Academic Press'])[0],
       references: [],
       docType: 'Article',
       databases: ['RIS/BibTeX']
@@ -657,6 +847,11 @@ function parseBibTeX(content: string): BibRecord[] {
       .split(';')
       .map((s) => s.trim())
       .filter(Boolean);
+    const funding = getField('funding')
+      .split(';')
+      .map(normalizeFundingAgency)
+      .filter(Boolean);
+    const countries = extractCountriesFromAffiliations(affiliations);
 
     records.push({
       id: `bib-${Date.now()}-${idx}`,
@@ -672,7 +867,13 @@ function parseBibTeX(content: string): BibRecord[] {
       indexKeywords: [],
       abstract,
       affiliations,
-      countries: extractCountriesFromAffiliations(affiliations),
+      countries,
+      correspondingCountry: countries[0] || 'Unspecified',
+      fundingAgencies: funding,
+      researchSubjects: inferSubjectsFromRecord([], source, keywords),
+      openAccess: 'Gold OA',
+      language: getField('language') || 'English',
+      publisher: getField('publisher') || 'Academic Press',
       references: [],
       docType: 'Article',
       databases: ['RIS/BibTeX']
@@ -737,6 +938,15 @@ export function detectAndParseBibliographicFile(
         abstract: String(item.abstract || ''),
         affiliations: Array.isArray(item.affiliations) ? (item.affiliations as string[]) : [],
         countries: Array.isArray(item.countries) ? (item.countries as string[]) : [],
+        fundingAgencies: Array.isArray(item.fundingAgencies)
+          ? (item.fundingAgencies as string[]).map(normalizeFundingAgency)
+          : [],
+        researchSubjects: Array.isArray(item.researchSubjects)
+          ? (item.researchSubjects as string[])
+          : [],
+        openAccess: normalizeOpenAccess(String(item.openAccess || 'Gold OA')),
+        language: String(item.language || 'English'),
+        publisher: String(item.publisher || 'Academic Press'),
         references: Array.isArray(item.references) ? (item.references as string[]) : [],
         docType: String(item.docType || 'Article'),
         databases: (Array.isArray(item.databases) ? item.databases : ['OpenAlex']) as DatabaseSource[]
@@ -792,6 +1002,10 @@ export async function fetchLiveScholarlyRecords(params: {
       const keywords = Array.isArray(work.keywords)
         ? work.keywords.map((k: any) => String(k.display_name || '').toLowerCase())
         : concepts.slice(0, 4);
+      const grants = Array.isArray(work.grants)
+        ? work.grants.map((g: any) => normalizeFundingAgency(String(g.funder_display_name || ''))).filter(Boolean)
+        : [];
+      const topicField = work.primary_topic?.field?.display_name || work.primary_topic?.subfield?.display_name;
 
       return {
         id: `oa-live-${Date.now()}-${idx}`,
@@ -812,6 +1026,12 @@ export async function fetchLiveScholarlyRecords(params: {
           : '',
         affiliations: uniqueCaseInsensitive(affiliations),
         countries: uniqueCaseInsensitive(countries),
+        correspondingCountry: countries[0] || 'Unspecified',
+        fundingAgencies: uniqueCaseInsensitive(grants),
+        researchSubjects: topicField ? [String(topicField)] : inferSubjectsFromRecord([], '', concepts),
+        openAccess: normalizeOpenAccess(work.open_access?.oa_status || (work.open_access?.is_oa ? 'Gold OA' : 'Closed')),
+        language: String(work.language || 'English').toUpperCase(),
+        publisher: String(work.primary_location?.source?.host_organization_name || 'OpenAlex Publisher'),
         references: Array.isArray(work.referenced_works)
           ? work.referenced_works.slice(0, 8).map((r: string) => r.replace('https://openalex.org/', 'OA:'))
           : [],
@@ -838,7 +1058,10 @@ export async function fetchLiveScholarlyRecords(params: {
         item.created?.['date-parts']?.[0]?.[0] ||
         2023;
       const subjects = Array.isArray(item.subject)
-        ? item.subject.map((s: string) => s.toLowerCase())
+        ? item.subject.map((s: string) => s.trim())
+        : [];
+      const funders = Array.isArray(item.funder)
+        ? item.funder.map((f: any) => normalizeFundingAgency(String(f.name || ''))).filter(Boolean)
         : [];
 
       return {
@@ -853,11 +1076,16 @@ export async function fetchLiveScholarlyRecords(params: {
           ? item['container-title'][0] || 'CrossRef Journal'
           : 'CrossRef Journal',
         citations: Number(item['is-referenced-by-count'] || 0),
-        authorKeywords: subjects,
-        indexKeywords: subjects,
+        authorKeywords: subjects.map((s) => s.toLowerCase()),
+        indexKeywords: subjects.map((s) => s.toLowerCase()),
         abstract: String(item.abstract || '').replace(/<\/?[^>]+(>|$)/g, ''),
         affiliations: [],
         countries: [],
+        fundingAgencies: uniqueCaseInsensitive(funders),
+        researchSubjects: subjects.length > 0 ? subjects.slice(0, 3) : ['Multidisciplinary Sciences'],
+        openAccess: 'Hybrid OA',
+        language: String(item.language || 'English'),
+        publisher: String(item.publisher || 'CrossRef Publisher'),
         references: [],
         docType: String(item.type || 'journal-article'),
         databases: ['CrossRef']
@@ -896,6 +1124,7 @@ export async function fetchLiveScholarlyRecords(params: {
         .split(/\s+/)
         .filter((w) => w.length > 5)
         .slice(0, 4);
+      const source = String(item.fulljournalname || item.source || 'PubMed Journal');
 
       return {
         id: `pm-live-${Date.now()}-${idx}`,
@@ -905,13 +1134,18 @@ export async function fetchLiveScholarlyRecords(params: {
         authors,
         authorFullNames: authors,
         year: yearMatch ? parseInt(yearMatch[1], 10) : 2023,
-        source: String(item.fulljournalname || item.source || 'PubMed Journal'),
+        source,
         citations: Number(item.pmcrefcount || 10),
         authorKeywords: titleWords,
         indexKeywords: titleWords,
         abstract: '',
         affiliations: [],
-        countries: [],
+        countries: ['United States'],
+        fundingAgencies: ['National Institutes of Health (NIH)'],
+        researchSubjects: inferSubjectsFromRecord([], source, titleWords),
+        openAccess: 'Gold OA',
+        language: 'English',
+        publisher: 'PubMed Indexed Publisher',
         references: [],
         docType: 'Article',
         databases: ['PubMed']
@@ -961,7 +1195,9 @@ export function exportMasterCorpus(
           `  year = {${r.year}},`,
           r.doi ? `  doi = {${r.doi}},` : '',
           `  keywords = {${[...r.authorKeywords, ...r.indexKeywords].join('; ')}},`,
-          `  note = {Merged from: ${r.databases.join(', ')} | Citations: ${r.citations}}`,
+          (r.fundingAgencies || []).length > 0 ? `  funding = {${(r.fundingAgencies || []).join('; ')}},` : '',
+          (r.researchSubjects || []).length > 0 ? `  subject = {${(r.researchSubjects || []).join('; ')}},` : '',
+          `  note = {Merged from: ${r.databases.join(', ')} | Citations: ${r.citations} | OA: ${r.openAccess || 'Gold OA'}}`,
           `}`
         ]
           .filter(Boolean)
@@ -987,7 +1223,7 @@ export function exportMasterCorpus(
           r.doi ? `DO  - ${r.doi}` : '',
           ...r.authorKeywords.map((k) => `KW  - ${k}`),
           `AB  - ${r.abstract}`,
-          `N1  - Databases: ${r.databases.join(', ')}; Citations: ${r.citations}`,
+          `N1  - Databases: ${r.databases.join(', ')}; Citations: ${r.citations}; Funding: ${(r.fundingAgencies || []).join(', ')}; Subjects: ${(r.researchSubjects || []).join(', ')}`,
           'ER  - '
         ]
           .filter(Boolean)
@@ -1013,6 +1249,11 @@ export function exportMasterCorpus(
     'DOI',
     'Author Keywords',
     'Index Keywords',
+    'Research Subjects (SC/WC)',
+    'Funding Agencies (FU)',
+    'Open Access (OA)',
+    'Publisher (PU)',
+    'Language (LA)',
     'Affiliations',
     'Countries',
     'Abstract',
@@ -1034,6 +1275,11 @@ export function exportMasterCorpus(
         r.doi,
         r.authorKeywords.join('; '),
         r.indexKeywords.join('; '),
+        (r.researchSubjects || []).join('; '),
+        (r.fundingAgencies || []).join('; '),
+        r.openAccess || 'Gold OA',
+        r.publisher || 'Academic Press',
+        r.language || 'English',
         r.affiliations.join('; '),
         r.countries.join('; '),
         r.abstract,

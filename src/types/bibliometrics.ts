@@ -7,6 +7,8 @@ export type DatabaseSource =
   | 'Dimensions'
   | 'RIS/BibTeX';
 
+export type OpenAccessType = 'Gold OA' | 'Green OA' | 'Hybrid OA' | 'Bronze OA' | 'Closed';
+
 export interface RawSourceSnapshot {
   sourceDb: DatabaseSource;
   originalId: string;
@@ -33,9 +35,17 @@ export interface BibRecord {
   abstract: string; // AB
   affiliations: string[]; // C1
   countries: string[];
-  references: string[]; // CR (e.g., "Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007")
-  docType: string; // Article, Review, Proceedings Paper
+  references: string[]; // CR
+  docType: string; // DT: Article, Review, Proceedings Paper
   databases: DatabaseSource[]; // DB provenance
+  // Extended Metadata Fields (Funding, Research Subjects, OA, Language, Publisher)
+  fundingAgencies?: string[]; // FU: Normalized Funding Sponsors / Grant Agencies
+  fundingText?: string; // FX: Raw Funding Grant & Acknowledgment text
+  researchSubjects?: string[]; // SC / WC: Subject Categories / Research Areas
+  openAccess?: OpenAccessType; // OA status
+  language?: string; // LA: Publication Language
+  publisher?: string; // PU: Publisher Name
+  correspondingCountry?: string; // RP: Corresponding Author Country
   sourceCitations?: Partial<Record<DatabaseSource, number>>;
   mergedFrom?: RawSourceSnapshot[];
 }
@@ -60,14 +70,22 @@ export type VOSUnitOfAnalysis =
   | 'all-keywords'
   | 'author-keywords'
   | 'index-keywords'
+  | 'research-subjects'
   | 'authors'
   | 'countries'
   | 'organizations'
+  | 'funding-agencies'
   | 'sources'
   | 'documents';
 
 export type VOSViewMode = 'network' | 'overlay' | 'density';
-export type VOSOverlayColorBy = 'avgYear' | 'avgCitations' | 'normCitations';
+export type VOSOverlayColorBy =
+  | 'avgYear'
+  | 'avgCitations'
+  | 'normCitations'
+  | 'fundedShare'
+  | 'openAccessShare'
+  | 'mcpShare';
 export type VOSNodeScaleBy = 'occurrences' | 'tls' | 'citations';
 
 export interface VOSNode {
@@ -80,6 +98,9 @@ export interface VOSNode {
   avgYear: number;
   avgCitations: number;
   normCitations: number;
+  fundedSharePct?: number;
+  openAccessSharePct?: number;
+  mcpSharePct?: number;
   x: number; // Normalized [-1, 1] layout coordinate
   y: number; // Normalized [-1, 1] layout coordinate
   recordIds: string[];
@@ -113,7 +134,10 @@ export type SankeyFieldType =
   | 'authorKeywords'
   | 'indexKeywords'
   | 'countries'
-  | 'affiliations';
+  | 'affiliations'
+  | 'fundingAgencies'
+  | 'researchSubjects'
+  | 'openAccess';
 
 export interface SankeyNode {
   id: string;
@@ -216,3 +240,98 @@ export interface HistoriographEdge {
   fromId: string;
   toId: string;
 }
+
+export interface FundingAgencyMetric {
+  agency: string;
+  documents: number;
+  sharePct: number;
+  totalCitations: number;
+  avgCitations: number;
+  hIndex: number;
+  openAccessPct: number;
+  topSubjects: string[];
+  topCountries: string[];
+}
+
+export interface ResearchSubjectMetric {
+  subject: string;
+  documents: number;
+  sharePct: number;
+  totalCitations: number;
+  avgCitations: number;
+  hIndex: number;
+  fundedPct: number;
+  topFundingAgencies: string[];
+  yearlyCounts: { year: number; count: number }[];
+}
+
+export interface CountryCollaborationMetric {
+  country: string;
+  totalDocuments: number;
+  scp: number; // Single Country Publications
+  mcp: number; // Multiple Country Publications (International Collaboration)
+  mcpRatioPct: number;
+  totalCitations: number;
+  avgCitations: number;
+  fundedDocs: number;
+}
+
+export interface MetadataBreakdownItem {
+  label: string;
+  count: number;
+  sharePct: number;
+  totalCitations: number;
+  avgCitations: number;
+}
+
+export type StratifyDimension =
+  | 'none'
+  | 'funding-status'
+  | 'funding-agency'
+  | 'research-subject'
+  | 'open-access'
+  | 'database'
+  | 'collaboration-type'
+  | 'publication-era';
+
+export interface StratumGroup {
+  id: string;
+  label: string;
+  color: string;
+  records: BibRecord[];
+  documents: number;
+  sharePct: number;
+  totalCitations: number;
+  avgCitations: number;
+  hIndex: number;
+  gIndex: number;
+  fundedPct: number;
+  openAccessPct: number;
+  mcpPct: number;
+  annualGrowthPct: number;
+}
+
+export interface StratifiedAnnualPoint {
+  year: number;
+  totalArticles: number;
+  meanTcPerArt: number;
+  strataCounts: Record<string, number>;
+  strataCitations: Record<string, number>;
+}
+
+export interface FunderSubjectMatrix {
+  funders: string[];
+  subjects: string[];
+  cells: Record<
+    string,
+    {
+      funder: string;
+      subject: string;
+      count: number;
+      totalCitations: number;
+      avgCitations: number;
+    }
+  >;
+  maxCellCount: number;
+}
+

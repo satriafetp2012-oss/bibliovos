@@ -1,22 +1,39 @@
 import React, { useState, useMemo } from 'react';
-import { BibRecord } from '../types/bibliometrics';
+import {
+  BibRecord,
+  StratifyDimension
+} from '../types/bibliometrics';
 import {
   computeBradfordsLaw,
   computeImpactMetrics,
-  computeLotkasLaw
+  computeLotkasLaw,
+  partitionCorpusByStrata
 } from '../utils/bibliometricEngine';
+import { StratifiedCohortPanel } from './StratificationAndCharts';
 
 interface SourcesAndAuthorsViewProps {
   records: BibRecord[];
+  stratifyBy: StratifyDimension;
+  onChangeStratifyBy: (dim: StratifyDimension) => void;
 }
 
-export const SourcesAndAuthorsView: React.FC<SourcesAndAuthorsViewProps> = ({ records }) => {
+export const SourcesAndAuthorsView: React.FC<SourcesAndAuthorsViewProps> = ({
+  records,
+  stratifyBy,
+  onChangeStratifyBy
+}) => {
   const [impactTab, setImpactTab] = useState<'authors' | 'sources'>('authors');
 
   const bradfordItems = useMemo(() => computeBradfordsLaw(records), [records]);
   const lotkaItems = useMemo(() => computeLotkasLaw(records), [records]);
   const authorImpacts = useMemo(() => computeImpactMetrics(records, 'authors'), [records]);
   const sourceImpacts = useMemo(() => computeImpactMetrics(records, 'sources'), [records]);
+
+  const effectiveStratifyDim = stratifyBy === 'none' ? 'funding-status' : stratifyBy;
+  const strata = useMemo(
+    () => partitionCorpusByStrata(records, effectiveStratifyDim),
+    [records, effectiveStratifyDim]
+  );
 
   const activeImpactList = impactTab === 'authors' ? authorImpacts : sourceImpacts;
   const topAuthorsForTimeline = authorImpacts.slice(0, 10);
@@ -33,6 +50,14 @@ export const SourcesAndAuthorsView: React.FC<SourcesAndAuthorsViewProps> = ({ re
 
   return (
     <div className="space-y-6">
+      {/* Multi-Dimensional Stratified Cohort Comparison Panel */}
+      <StratifiedCohortPanel
+        records={records}
+        stratifyBy={stratifyBy}
+        onChangeStratifyBy={onChangeStratifyBy}
+        moduleTitle="Stratified Source & Author Productivity Benchmarking"
+      />
+
       {/* Row 1: Bradford's Law of Scattering & Lotka's Law of Productivity */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* Bradford's Law */}
@@ -354,15 +379,15 @@ export const SourcesAndAuthorsView: React.FC<SourcesAndAuthorsViewProps> = ({ re
         </div>
       </div>
 
-      {/* Row 3: H-Index, G-Index, M-Index & Citation Impact Table */}
+      {/* Row 3: H-Index, G-Index, M-Index & Citation Impact Table with Stratified Breakdown */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-              Scholarly Impact Indices (h-index · g-index · m-index)
+              Scholarly Impact Indices (h-index · g-index · m-index) & Stratum Composition
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Hirsch h-index, Egghe g-index, and time-normalized m-index computed across the harmonized corpus.
+              Hirsch h-index, Egghe g-index, time-normalized m-index, and proportional cohort composition across the harmonized corpus.
             </p>
           </div>
 
@@ -403,34 +428,69 @@ export const SourcesAndAuthorsView: React.FC<SourcesAndAuthorsViewProps> = ({ re
                 <th className="py-2.5 px-3 text-right">m-index</th>
                 <th className="py-2.5 px-3 text-right">Total Citations (TC)</th>
                 <th className="py-2.5 px-3 text-right">Net Production (NP)</th>
+                <th className="py-2.5 px-3 min-w-[160px]">Cohort Composition</th>
                 <th className="py-2.5 px-3 text-right">PY Start</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800 font-mono tabular-nums">
-              {activeImpactList.slice(0, 15).map((item, idx) => (
-                <tr key={item.name} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                  <td className="py-2.5 px-3 text-slate-500">#{idx + 1}</td>
-                  <td className="py-2.5 px-3 font-sans font-medium text-slate-900 dark:text-slate-100">
-                    {item.name}
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-bold text-blue-600 dark:text-blue-400">
-                    {item.hIndex}
-                  </td>
-                  <td className="py-2.5 px-3 text-right text-slate-800 dark:text-slate-200">
-                    {item.gIndex}
-                  </td>
-                  <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-400">
-                    {item.mIndex.toFixed(2)}
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-semibold text-slate-900 dark:text-slate-100">
-                    {item.totalCitations.toLocaleString()}
-                  </td>
-                  <td className="py-2.5 px-3 text-right text-slate-700 dark:text-slate-300">
-                    {item.netProduction}
-                  </td>
-                  <td className="py-2.5 px-3 text-right text-slate-500">{item.firstYear}</td>
-                </tr>
-              ))}
+              {activeImpactList.slice(0, 15).map((item, idx) => {
+                const entityCounts = strata.map((st) => {
+                  const count = st.records.filter((r) =>
+                    impactTab === 'authors'
+                      ? r.authors.includes(item.name)
+                      : r.source === item.name
+                  ).length;
+                  return { st, count };
+                });
+                const totalEntityCount = Math.max(
+                  1,
+                  entityCounts.reduce((s, e) => s + e.count, 0)
+                );
+
+                return (
+                  <tr key={item.name} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                    <td className="py-2.5 px-3 text-slate-500">#{idx + 1}</td>
+                    <td className="py-2.5 px-3 font-sans font-medium text-slate-900 dark:text-slate-100">
+                      {item.name}
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-bold text-blue-600 dark:text-blue-400">
+                      {item.hIndex}
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-slate-800 dark:text-slate-200">
+                      {item.gIndex}
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-400">
+                      {item.mIndex.toFixed(2)}
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-semibold text-slate-900 dark:text-slate-100">
+                      {item.totalCitations.toLocaleString()}
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-slate-700 dark:text-slate-300">
+                      {item.netProduction}
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <div className="h-2.5 w-full bg-slate-100 dark:bg-slate-800 rounded overflow-hidden flex">
+                        {entityCounts.map(({ st, count }) => {
+                          if (count <= 0) return null;
+                          const pct = Math.round((count / totalEntityCount) * 100);
+                          return (
+                            <div
+                              key={st.id}
+                              style={{
+                                width: `${(count / totalEntityCount) * 100}%`,
+                                backgroundColor: st.color
+                              }}
+                              className="h-full"
+                              title={`${st.label}: ${count} doc(s) (${pct}%)`}
+                            />
+                          );
+                        })}
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-slate-500">{item.firstYear}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -438,3 +498,4 @@ export const SourcesAndAuthorsView: React.FC<SourcesAndAuthorsViewProps> = ({ re
     </div>
   );
 };
+

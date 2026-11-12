@@ -1,16 +1,22 @@
 import React, { useState, useMemo } from 'react';
 import {
   BibRecord,
-  SankeyFieldType
+  SankeyFieldType,
+  StratifyDimension
 } from '../types/bibliometrics';
 import {
   computeAnnualProduction,
   computeMainInfo,
-  computeThreeFieldSankey
+  computeStratifiedAnnualSeries,
+  computeThreeFieldSankey,
+  STRATIFY_DIMENSION_LABELS
 } from '../utils/bibliometricEngine';
+import { StratifiedCohortPanel } from './StratificationAndCharts';
 
 interface OverviewAndSankeyViewProps {
   records: BibRecord[];
+  stratifyBy: StratifyDimension;
+  onChangeStratifyBy: (dim: StratifyDimension) => void;
 }
 
 const FIELD_LABELS: Record<SankeyFieldType, string> = {
@@ -19,10 +25,17 @@ const FIELD_LABELS: Record<SankeyFieldType, string> = {
   authorKeywords: 'Author Keywords (DE)',
   indexKeywords: 'Keywords Plus / MeSH (ID)',
   countries: 'Countries',
-  affiliations: 'Affiliations / Institutions (C1)'
+  affiliations: 'Affiliations / Institutions (C1)',
+  fundingAgencies: 'Funding Agencies (FU)',
+  researchSubjects: 'Research Subjects (SC/WC)',
+  openAccess: 'Open Access Status (OA)'
 };
 
-export const OverviewAndSankeyView: React.FC<OverviewAndSankeyViewProps> = ({ records }) => {
+export const OverviewAndSankeyView: React.FC<OverviewAndSankeyViewProps> = ({
+  records,
+  stratifyBy,
+  onChangeStratifyBy
+}) => {
   const [leftField, setLeftField] = useState<SankeyFieldType>('sources');
   const [middleField, setMiddleField] = useState<SankeyFieldType>('authors');
   const [rightField, setRightField] = useState<SankeyFieldType>('authorKeywords');
@@ -32,6 +45,10 @@ export const OverviewAndSankeyView: React.FC<OverviewAndSankeyViewProps> = ({ re
 
   const mainInfo = useMemo(() => computeMainInfo(records), [records]);
   const annualSeries = useMemo(() => computeAnnualProduction(records), [records]);
+  const stratifiedAnnual = useMemo(
+    () => computeStratifiedAnnualSeries(records, stratifyBy),
+    [records, stratifyBy]
+  );
   const sankey = useMemo(
     () => computeThreeFieldSankey(records, leftField, middleField, rightField, topN),
     [records, leftField, middleField, rightField, topN]
@@ -121,26 +138,62 @@ export const OverviewAndSankeyView: React.FC<OverviewAndSankeyViewProps> = ({ re
         </div>
       </div>
 
-      {/* Annual Scientific Production & Average Citations Per Year */}
+      {/* Multi-Dimensional Stratified Cohort Comparison Panel */}
+      <StratifiedCohortPanel
+        records={records}
+        stratifyBy={stratifyBy}
+        onChangeStratifyBy={onChangeStratifyBy}
+        moduleTitle="Stratified Overview & Cohort Performance Benchmarking"
+      />
+
+      {/* Annual Scientific Production & Average Citations Per Year (with Stratified Stacked Bars) */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4">
           <div>
             <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
               Annual Scientific Production & Citation Velocity
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Bars indicate yearly publication volume (N); solid line tracks Mean Total Citations per Document.
+              Bars indicate yearly publication volume (N), optionally stratified by cohort; solid line tracks Mean Citations per Document.
             </p>
           </div>
-          <div className="flex items-center gap-4 text-xs font-mono">
-            <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
-              <span className="w-3 h-2.5 bg-blue-600 inline-block rounded-xs" /> Annual Articles
-            </span>
-            <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <div className="flex items-center gap-1.5">
+              <label className="text-slate-500 font-medium">Chart Stratification:</label>
+              <select
+                value={stratifyBy}
+                onChange={(e) => onChangeStratifyBy(e.target.value as StratifyDimension)}
+                aria-label="Stratify annual production chart"
+                className="px-2 py-1 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded"
+              >
+                {(Object.entries(STRATIFY_DIMENSION_LABELS) as [StratifyDimension, string][]).map(
+                  ([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+            <span className="flex items-center gap-1.5 font-mono text-amber-600 dark:text-amber-400">
               <span className="w-3 h-0.5 bg-amber-500 inline-block" /> Mean Citations / Doc
             </span>
           </div>
         </div>
+
+        {stratifyBy !== 'none' && (
+          <div className="flex flex-wrap items-center gap-3 text-xs mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+            {stratifiedAnnual.strata.map((st) => (
+              <span key={st.id} className="inline-flex items-center gap-1.5 font-mono tabular-nums">
+                <span
+                  className="w-2.5 h-2.5 rounded-xs shrink-0"
+                  style={{ backgroundColor: st.color }}
+                />
+                <span className="font-sans text-slate-700 dark:text-slate-300">{st.label}</span>
+              </span>
+            ))}
+          </div>
+        )}
 
         <div className="relative h-64 w-full">
           <svg viewBox="0 0 860 230" className="w-full h-full overflow-visible">
@@ -178,7 +231,7 @@ export const OverviewAndSankeyView: React.FC<OverviewAndSankeyViewProps> = ({ re
               );
             })}
 
-            {/* Bars for Annual Articles */}
+            {/* Bars for Annual Articles (Single or Stratified Stacked) */}
             {annualSeries.map((pt, idx) => {
               const step = 740 / Math.max(1, annualSeries.length);
               const x = 60 + idx * step + step * 0.2;
@@ -186,6 +239,18 @@ export const OverviewAndSankeyView: React.FC<OverviewAndSankeyViewProps> = ({ re
               const barH = (pt.articles / maxAnnualArticles) * 160;
               const y = 190 - barH;
               const isHovered = hoveredYear === pt.year;
+              const stratPt = stratifiedAnnual.series[idx];
+
+              let yCursor = 190;
+              const totalStrataYear = stratPt
+                ? Math.max(
+                    1,
+                    stratifiedAnnual.strata.reduce(
+                      (s, st) => s + (stratPt.strataCounts[st.label] || 0),
+                      0
+                    )
+                  )
+                : 1;
 
               return (
                 <g
@@ -194,15 +259,40 @@ export const OverviewAndSankeyView: React.FC<OverviewAndSankeyViewProps> = ({ re
                   onMouseLeave={() => setHoveredYear(null)}
                   className="cursor-pointer"
                 >
-                  <rect
-                    x={x}
-                    y={y}
-                    width={barW}
-                    height={Math.max(2, barH)}
-                    rx={2}
-                    fill={isHovered ? '#1D4ED8' : '#2563EB'}
-                    fillOpacity={isHovered ? 0.95 : 0.8}
-                  />
+                  {stratifyBy === 'none' || !stratPt ? (
+                    <rect
+                      x={x}
+                      y={y}
+                      width={barW}
+                      height={Math.max(2, barH)}
+                      rx={2}
+                      fill={isHovered ? '#1D4ED8' : '#2563EB'}
+                      fillOpacity={isHovered ? 0.95 : 0.8}
+                    />
+                  ) : (
+                    stratifiedAnnual.strata.map((st) => {
+                      const c = stratPt.strataCounts[st.label] || 0;
+                      if (c <= 0) return null;
+                      const segH = (c / totalStrataYear) * barH;
+                      yCursor -= segH;
+                      return (
+                        <rect
+                          key={st.id}
+                          x={x}
+                          y={yCursor}
+                          width={barW}
+                          height={Math.max(1.5, segH)}
+                          fill={st.color}
+                          stroke="#FFFFFF"
+                          strokeWidth={0.5}
+                        >
+                          <title>
+                            {pt.year} — {st.label}: {c} doc(s)
+                          </title>
+                        </rect>
+                      );
+                    })
+                  )}
                   <text
                     x={x + barW / 2}
                     y={208}

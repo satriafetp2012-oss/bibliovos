@@ -2,10 +2,9 @@ import { BibRecord } from '../types/bibliometrics';
 
 /**
  * Rich, realistic multi-database bibliographic dataset covering
- * AI in Clinical Medicine, Scientometrics & Knowledge Graphs (2017–2026).
- * Includes intentional cross-database duplicate records across Scopus, Web of Science,
- * PubMed, OpenAlex, CrossRef, and Dimensions so the deduplication engine and
- * conflict review log work out-of-the-box.
+ * AI in Clinical Medicine, Scientometrics & Knowledge Graphs (2017–2026),
+ * complete with Funding Agencies (FU), Grant Texts (FX), Research Subject Categories (SC/WC),
+ * Open Access Status (OA), Publishers (PU), and Languages (LA).
  */
 export const INITIAL_RAW_RECORDS: BibRecord[] = [
   // 1. Foundational Bibliometrix paper (Scopus version)
@@ -24,6 +23,13 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'The use of bibliometrics is gradually extending to all disciplines. It is particularly suitable for science mapping at a time when the emphasis on empirical contributions is producing voluminous, fragmented, and controversial research streams. We present bibliometrix, an open-source R-tool for quantitative research in scientometrics and bibliometrics.',
     affiliations: ['University of Naples Federico II, Italy', 'University of Campania Luigi Vanvitelli, Italy'],
     countries: ['Italy'],
+    correspondingCountry: 'Italy',
+    fundingAgencies: ['Italian Ministry of University and Research (MUR)', 'University of Naples Federico II'],
+    fundingText: 'Supported by the Italian Ministry of University and Research (PRIN Grant 2015-SCIENTO) and University of Naples Federico II.',
+    researchSubjects: ['Information Science & Library Science', 'Computer Science, Interdisciplinary Applications'],
+    openAccess: 'Green OA',
+    language: 'English',
+    publisher: 'Elsevier',
     references: [
       'Van Eck NJ, 2010, SCIENTOMETRICS, V84, P523, DOI 10.1007/s11192-009-0146-3',
       'Cobo MJ, 2011, J AM SOC INF SCI TEC, V62, P1382, DOI 10.1002/asi.21525',
@@ -35,7 +41,7 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     docType: 'Article',
     databases: ['Scopus']
   },
-  // 1b. Duplicate in Web of Science (Exact DOI match, richer CR & slightly different author format)
+  // 1b. Duplicate in Web of Science
   {
     id: 'raw-wos-1',
     ut: 'WOS:000414921000004',
@@ -51,6 +57,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'The use of bibliometrics is gradually extending to all disciplines. We present bibliometrix, an open-source tool in R for executing comprehensive science mapping analysis.',
     affiliations: ['Univ Naples Federico II, Dept Econ & Stat, Naples, Italy'],
     countries: ['Italy'],
+    correspondingCountry: 'Italy',
+    fundingAgencies: ['Italian Ministry of University and Research (MUR)', 'European Social Fund (ESF)'],
+    researchSubjects: ['Information Science & Library Science', 'Statistics & Probability'],
+    openAccess: 'Green OA',
+    language: 'English',
+    publisher: 'Elsevier',
     references: [
       'Van Eck NJ, 2010, SCIENTOMETRICS, V84, P523, DOI 10.1007/s11192-009-0146-3',
       'Hirsch JE, 2005, P NATL ACAD SCI USA, V102, P16569, DOI 10.1073/pnas.0507655102',
@@ -76,6 +88,13 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Clustering scientific publications in an entire field of science based on direct citation relations allows deep exploration of research topics. We demonstrate how CitNetExplorer and VOSviewer work together to cluster and visualize large citation networks.',
     affiliations: ['Leiden University, CWTS, Netherlands'],
     countries: ['Netherlands'],
+    correspondingCountry: 'Netherlands',
+    fundingAgencies: ['Dutch Research Council (NWO)'],
+    fundingText: 'Funded by the Netherlands Organisation for Scientific Research (NWO Grant CWTS-2016).',
+    researchSubjects: ['Information Science & Library Science', 'Computer Science, Information Systems'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'Springer Nature',
     references: [
       'Van Eck NJ, 2010, SCIENTOMETRICS, V84, P523, DOI 10.1007/s11192-009-0146-3',
       'Waltman L, 2010, J INFORMETR, V4, P629',
@@ -84,7 +103,7 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     docType: 'Article',
     databases: ['Web of Science']
   },
-  // 2b. Duplicate in OpenAlex (Fuzzy title + year match, missing DOI in export)
+  // 2b. Duplicate in OpenAlex
   {
     id: 'raw-openalex-2',
     ut: 'OA:W2560192831',
@@ -100,6 +119,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Clustering scientific publications in an entire field of science based on direct citation relations allows deep exploration of research topics.',
     affiliations: ['Centre for Science and Technology Studies, Leiden University, Netherlands'],
     countries: ['Netherlands'],
+    correspondingCountry: 'Netherlands',
+    fundingAgencies: ['Dutch Research Council (NWO)'],
+    researchSubjects: ['Information Science & Library Science'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'Springer Nature',
     references: [
       'Van Eck NJ, 2010, SCIENTOMETRICS, V84, P523, DOI 10.1007/s11192-009-0146-3',
       'Small H, 1973, J AM SOC INFORM SCI, V24, P265'
@@ -124,6 +149,13 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Combining bibliographic records across Web of Science, Scopus, PubMed, and OpenAlex requires rigorous field harmonization and duplicate resolution. This study evaluates coverage overlap and systematic citation differentials across 252 subject categories.',
     affiliations: ['University of Granada, Spain', 'University of Wolverhampton, United Kingdom', 'Universitat Politècnica de València, Spain'],
     countries: ['Spain', 'United Kingdom'],
+    correspondingCountry: 'Spain',
+    fundingAgencies: ['Spanish Ministry of Science and Innovation (MCIN)', 'European Regional Development Fund (ERDF)'],
+    fundingText: 'Supported by the Spanish Ministry of Science and Innovation (FPU14/04982) and ERDF.',
+    researchSubjects: ['Information Science & Library Science', 'Computer Science, Interdisciplinary Applications'],
+    openAccess: 'Hybrid OA',
+    language: 'English',
+    publisher: 'Springer Nature',
     references: [
       'Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007',
       'Mongeon P, 2016, SCIENTOMETRICS, V106, P213',
@@ -149,6 +181,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: '',
     affiliations: ['University of Granada, Spain', 'University of Wolverhampton, United Kingdom'],
     countries: ['Spain', 'United Kingdom'],
+    correspondingCountry: 'Spain',
+    fundingAgencies: ['Spanish Ministry of Science and Innovation (MCIN)', 'UK Research and Innovation (UKRI)'],
+    researchSubjects: ['Information Science & Library Science'],
+    openAccess: 'Hybrid OA',
+    language: 'English',
+    publisher: 'Springer Nature',
     references: [
       'Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007'
     ],
@@ -172,6 +210,13 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'OpenAlex is a fully open catalog of the global research system, replacing Microsoft Academic Graph and indexing over 240 million works with rich concept tagging, institutional affiliations, and citation graphs.',
     affiliations: ['OurResearch, United States', 'Simon Fraser University, Canada'],
     countries: ['United States', 'Canada'],
+    correspondingCountry: 'United States',
+    fundingAgencies: ['Arcadia Fund', 'Alfred P. Sloan Foundation'],
+    fundingText: 'Funded by Arcadia, a charitable fund of Lisbet Rausing and Peter Baldwin, and the Alfred P. Sloan Foundation.',
+    researchSubjects: ['Information Science & Library Science', 'Data Science & Knowledge Graphs'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'MIT Press',
     references: [
       'Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007',
       'Van Eck NJ, 2017, SCIENTOMETRICS, V111, P1053, DOI 10.1007/s11192-016-2225-6',
@@ -198,6 +243,13 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Generalist medical AI (GMAI) models trained on massive multimodal clinical datasets—including imaging, electronic health records, genomics, and medical text—enable flexible zero-shot clinical reasoning and bedside decision support.',
     affiliations: ['Stanford University, United States', 'Harvard Medical School, United States', 'Yale School of Medicine, United States', 'Scripps Research Translational Institute, United States'],
     countries: ['United States'],
+    correspondingCountry: 'United States',
+    fundingAgencies: ['National Institutes of Health (NIH)', 'National Science Foundation (NSF)', 'Swiss National Science Foundation (SNSF)'],
+    fundingText: 'Supported by NIH Grant UL1TR002550, NSF OAC-2118201, and Swiss National Science Foundation.',
+    researchSubjects: ['Medical Informatics', 'Computer Science, Artificial Intelligence', 'Multidisciplinary Sciences'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'Springer Nature',
     references: [
       'Topol EJ, 2019, NAT MED, V25, P44, DOI 10.1038/s41591-018-0300-7',
       'Esteva A, 2017, NATURE, V542, P115',
@@ -222,6 +274,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Generalist medical AI (GMAI) models trained on massive multimodal clinical datasets enable flexible zero-shot clinical reasoning and bedside decision support.',
     affiliations: ['Stanford University, United States', 'Harvard Medical School, United States'],
     countries: ['United States'],
+    correspondingCountry: 'United States',
+    fundingAgencies: ['National Institutes of Health (NIH)', 'Chan Zuckerberg Initiative (CZI)'],
+    researchSubjects: ['Medical Informatics', 'Computer Science, Artificial Intelligence'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'Springer Nature',
     references: [
       'Topol EJ, 2019, NAT MED, V25, P44, DOI 10.1038/s41591-018-0300-7',
       'Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007'
@@ -246,6 +304,13 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'The use of artificial intelligence, and the deep-learning subtype in particular, has been enabled by the use of labeled big data along with markedly enhanced computing power and cloud storage across all medical specialties.',
     affiliations: ['Scripps Research Translational Institute, La Jolla, United States'],
     countries: ['United States'],
+    correspondingCountry: 'United States',
+    fundingAgencies: ['National Institutes of Health (NIH)'],
+    fundingText: 'Supported by NIH/NCATS Grant UL1TR002550.',
+    researchSubjects: ['Medicine, Research & Experimental', 'Medical Informatics', 'Health Care Sciences & Services'],
+    openAccess: 'Green OA',
+    language: 'English',
+    publisher: 'Springer Nature',
     references: [
       'Esteva A, 2017, NATURE, V542, P115',
       'Gulshan V, 2016, JAMA, V316, P2402',
@@ -270,6 +335,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'The convergence of human clinicians and artificial intelligence promises to transform diagnostic accuracy, workflow efficiency, and patient autonomy.',
     affiliations: ['Scripps Res Transl Inst, La Jolla, CA, USA'],
     countries: ['United States'],
+    correspondingCountry: 'United States',
+    fundingAgencies: ['National Institutes of Health (NIH)'],
+    researchSubjects: ['Medicine, Research & Experimental', 'Medical Informatics'],
+    openAccess: 'Green OA',
+    language: 'English',
+    publisher: 'Springer Nature',
     references: [
       'Esteva A, 2017, NATURE, V542, P115',
       'LeCun Y, 2015, NATURE, V521, P436'
@@ -294,6 +365,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Bibliometric analysis is a popular and rigorous method for exploring and analyzing large volumes of scientific data. It enables us to unpack the evolutionary nuances of a specific field while shedding light on the emerging areas in that field.',
     affiliations: ['Georgia State University, United States', 'Malaviya National Institute of Technology Jaipur, India', 'Swinburne University of Technology, Australia'],
     countries: ['United States', 'India', 'Australia'],
+    correspondingCountry: 'United States',
+    fundingAgencies: [], // Unfunded methodological paper for Funded vs Unfunded comparison
+    researchSubjects: ['Business & Management', 'Information Science & Library Science'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'Elsevier',
     references: [
       'Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007',
       'Van Eck NJ, 2010, SCIENTOMETRICS, V84, P523, DOI 10.1007/s11192-009-0146-3',
@@ -320,6 +397,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Bibliometric analysis is a rigorous method for exploring and analyzing large volumes of scientific data using performance analysis and science mapping techniques.',
     affiliations: ['Georgia State University, United States', 'Swinburne University of Technology, Australia'],
     countries: ['United States', 'Australia'],
+    correspondingCountry: 'United States',
+    fundingAgencies: [],
+    researchSubjects: ['Business & Management', 'Information Science & Library Science'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'Elsevier',
     references: [
       'Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007',
       'Van Eck NJ, 2017, SCIENTOMETRICS, V111, P1053, DOI 10.1007/s11192-016-2225-6'
@@ -344,6 +427,13 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Callon centrality and density metrics allow co-word networks to be projected onto a two-dimensional strategic diagram divided into motor themes, niche themes, emerging or declining themes, and basic transversal themes.',
     affiliations: ['University of Granada, Spain', 'University of Cádiz, Spain'],
     countries: ['Spain'],
+    correspondingCountry: 'Spain',
+    fundingAgencies: ['Spanish Ministry of Science and Innovation (MCIN)', 'European Regional Development Fund (ERDF)'],
+    fundingText: 'Supported by FEDER/ERDF and Spanish Ministry of Science Project TIN2016-75850-R.',
+    researchSubjects: ['Information Science & Library Science', 'Computer Science, Artificial Intelligence'],
+    openAccess: 'Green OA',
+    language: 'English',
+    publisher: 'Elsevier',
     references: [
       'Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007',
       'Cobo MJ, 2011, J AM SOC INF SCI TEC, V62, P1382, DOI 10.1002/asi.21525',
@@ -370,6 +460,13 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Reference Publication Year Spectroscopy (RPYS) is a quantitative method for identifying the historical roots of research fields and quantifying their impact on current research by plotting cited reference frequencies and 5-year median deviations.',
     affiliations: ['Max Planck Institute for Solid State Research, Germany', 'Max Planck Society, Munich, Germany', 'University of Amsterdam, Netherlands'],
     countries: ['Germany', 'Netherlands'],
+    correspondingCountry: 'Germany',
+    fundingAgencies: ['German Research Foundation (DFG)', 'Max Planck Society'],
+    fundingText: 'Supported by the Max Planck Society and German Research Foundation (DFG Competence Center for Bibliometrics).',
+    researchSubjects: ['Information Science & Library Science', 'History & Philosophy of Science'],
+    openAccess: 'Hybrid OA',
+    language: 'English',
+    publisher: 'Wiley',
     references: [
       'Marx W, 2014, J ASSOC INF SCI TECH, V65, P751',
       'Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007',
@@ -397,6 +494,13 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'While deep learning models achieve dermatologist- and radiologist-level accuracy, clinical adoption requires transparent, auditable, and causally interpretable decision explanations.',
     affiliations: ['Medical University of Graz, Austria', 'Medical University of Vienna, Austria'],
     countries: ['Austria'],
+    correspondingCountry: 'Austria',
+    fundingAgencies: ['Horizon Europe / European Commission', 'Austrian Science Fund (FWF)'],
+    fundingText: 'Funded by European Union Horizon 2020 / Horizon Europe Grant 826078 (FeatureCloud) and Austrian Science Fund (FWF).',
+    researchSubjects: ['Computer Science, Artificial Intelligence', 'Medical Informatics'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'Elsevier',
     references: [
       'Topol EJ, 2019, NAT MED, V25, P44, DOI 10.1038/s41591-018-0300-7',
       'Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007',
@@ -421,6 +525,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Clinical adoption of deep neural networks requires transparent, auditable, and causally interpretable decision explanations.',
     affiliations: ['Medical University of Graz, Austria'],
     countries: ['Austria'],
+    correspondingCountry: 'Austria',
+    fundingAgencies: ['Horizon Europe / European Commission', 'Austrian Science Fund (FWF)'],
+    researchSubjects: ['Medical Informatics', 'Computer Science, Artificial Intelligence'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'Elsevier',
     references: [
       'Topol EJ, 2019, NAT MED, V25, P44, DOI 10.1038/s41591-018-0300-7'
     ],
@@ -444,6 +554,13 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Federated learning enables multiple clinical institutions to collaboratively train deep learning models without exchanging raw patient health records, resolving data governance barriers.',
     affiliations: ['King\'s College London, United Kingdom', 'Technical University of Munich, Germany', 'NVIDIA, United States'],
     countries: ['United Kingdom', 'Germany', 'United States'],
+    correspondingCountry: 'United Kingdom',
+    fundingAgencies: ['Wellcome Trust', 'UK Research and Innovation (UKRI)', 'German Research Foundation (DFG)'],
+    fundingText: 'Supported by the Wellcome/EPSRC Centre for Medical Engineering (WT203148/Z/16/Z) and UKRI London Medical Imaging & AI Centre.',
+    researchSubjects: ['Health Care Sciences & Services', 'Medical Informatics', 'Computer Science, Artificial Intelligence'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'Springer Nature',
     references: [
       'Topol EJ, 2019, NAT MED, V25, P44, DOI 10.1038/s41591-018-0300-7',
       'McMahan B, 2017, AISTATS, P1273',
@@ -469,6 +586,13 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Biomedical knowledge graphs integrate heterogeneous molecular, pharmacological, and clinical datasets into unified relational networks for graph neural network inference.',
     affiliations: ['Harvard Medical School, United States', 'Stanford University, United States', 'University of Toronto, Canada'],
     countries: ['United States', 'Canada'],
+    correspondingCountry: 'United States',
+    fundingAgencies: ['National Institutes of Health (NIH)', 'National Science Foundation (NSF)', 'Canadian Institutes of Health Research (CIHR)'],
+    fundingText: 'Supported by NIH R01-HG011460, NSF CAREER 2046760, and CIHR Project Grant.',
+    researchSubjects: ['Bioinformatics & Computational Biology', 'Pharmacology & Pharmacy', 'Computer Science, Artificial Intelligence'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'Oxford University Press',
     references: [
       'Topol EJ, 2019, NAT MED, V25, P44, DOI 10.1038/s41591-018-0300-7',
       'Zitnik M, 2018, BIOINFORMATICS, V34, P457',
@@ -492,6 +616,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Biomedical knowledge graphs integrate heterogeneous molecular, pharmacological, and clinical datasets into unified relational networks.',
     affiliations: ['Harvard Medical School, United States', 'University of Toronto, Canada'],
     countries: ['United States', 'Canada'],
+    correspondingCountry: 'United States',
+    fundingAgencies: ['National Institutes of Health (NIH)', 'Chan Zuckerberg Initiative (CZI)'],
+    researchSubjects: ['Bioinformatics & Computational Biology', 'Computer Science, Artificial Intelligence'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'Oxford University Press',
     references: [
       'Topol EJ, 2019, NAT MED, V25, P44, DOI 10.1038/s41591-018-0300-7'
     ],
@@ -499,7 +629,7 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     databases: ['OpenAlex']
   },
 
-  // 13. Large Language Models in Clinical Practice (2024)
+  // 13. Large Language Models in Clinical Practice
   {
     id: 'raw-pubmed-13',
     ut: 'PMID:37460756',
@@ -515,6 +645,13 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Large language models demonstrated impressive capabilities on medical question benchmarks, yet safe clinical deployment requires human-clinician evaluation rubrics across bias, comprehension, and harm mitigation.',
     affiliations: ['Google Research, United States', 'Scripps Research Translational Institute, United States', 'Stanford University, United States'],
     countries: ['United States'],
+    correspondingCountry: 'United States',
+    fundingAgencies: ['Alphabet / Google Research', 'National Institutes of Health (NIH)'],
+    fundingText: 'Funded by Google Research and NIH/NCATS Grant UL1TR002550.',
+    researchSubjects: ['Medical Informatics', 'Computer Science, Artificial Intelligence', 'Multidisciplinary Sciences'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'Springer Nature',
     references: [
       'Moor M, 2023, NATURE, V616, P259, DOI 10.1038/s41586-023-05881-4',
       'Topol EJ, 2019, NAT MED, V25, P44, DOI 10.1038/s41591-018-0300-7',
@@ -541,6 +678,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Digital Science launched the Dimensions scholarly search database including journal articles, citation counts, grant links, and clinical trial linkages, offering a major new data source for scientometric harmonization.',
     affiliations: ['University of Wolverhampton, United Kingdom'],
     countries: ['United Kingdom'],
+    correspondingCountry: 'United Kingdom',
+    fundingAgencies: [],
+    researchSubjects: ['Information Science & Library Science'],
+    openAccess: 'Closed',
+    language: 'English',
+    publisher: 'Elsevier',
     references: [
       'Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007',
       'Mongeon P, 2016, SCIENTOMETRICS, V106, P213',
@@ -566,6 +709,13 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'The Preferred Reporting Items for Systematic reviews and Meta-Analyses (PRISMA) 2020 statement replaces the 2009 statement and includes new guidance for multi-database search strategies, automated deduplication, and living evidence maps.',
     affiliations: ['Monash University, Australia', 'University of Amsterdam, Netherlands', 'Université Paris Cité, France', 'Ottawa Hospital Research Institute, Canada'],
     countries: ['Australia', 'Netherlands', 'France', 'Canada'],
+    correspondingCountry: 'Australia',
+    fundingAgencies: ['Australian National Health and Medical Research Council (NHMRC)', 'Canadian Institutes of Health Research (CIHR)'],
+    fundingText: 'Supported by NHMRC Early Career Fellowship (1088535) and CIHR Foundation Grant.',
+    researchSubjects: ['Medicine, General & Internal', 'Health Care Sciences & Services', 'Information Science & Library Science'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'BMJ Publishing Group',
     references: [
       'Moher D, 2009, PLOS MED, V6, Pe1000097',
       'Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007',
@@ -589,6 +739,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'The PRISMA 2020 statement includes updated guidance for reporting multi-database searches and deduplication.',
     affiliations: ['Monash University, Australia', 'Ottawa Hospital Research Institute, Canada'],
     countries: ['Australia', 'Canada'],
+    correspondingCountry: 'Australia',
+    fundingAgencies: ['Australian National Health and Medical Research Council (NHMRC)'],
+    researchSubjects: ['Medicine, General & Internal', 'Health Care Sciences & Services'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'BMJ Publishing Group',
     references: [
       'Moher D, 2009, PLOS MED, V6, Pe1000097'
     ],
@@ -596,7 +752,7 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     databases: ['Scopus']
   },
 
-  // 16. Automated Deduplication in R / Bibliometrix (Bramer / Aria / Caputo)
+  // 16. Automated Deduplication in R / Bibliometrix
   {
     id: 'raw-scopus-16',
     ut: 'SCOPUS:2-s2.0-85129018273',
@@ -612,6 +768,13 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Researchers conducting comprehensive science mapping frequently combine Scopus, Web of Science, and PubMed exports. We introduce an automated normalization and two-stage duplicate detection pipeline that preserves citation counts and cited reference strings.',
     affiliations: ['University of Naples Federico II, Italy', 'University of Calabria, Italy', 'University of Campania Luigi Vanvitelli, Italy'],
     countries: ['Italy'],
+    correspondingCountry: 'Italy',
+    fundingAgencies: ['Italian Ministry of University and Research (MUR)', 'NextGenerationEU'],
+    fundingText: 'Supported by NextGenerationEU PNRR and Italian Ministry of University and Research (MUR).',
+    researchSubjects: ['Computer Science, Software Engineering', 'Information Science & Library Science'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'Elsevier',
     references: [
       'Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007',
       'Van Eck NJ, 2010, SCIENTOMETRICS, V84, P523, DOI 10.1007/s11192-009-0146-3',
@@ -638,6 +801,13 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Combining semantic embeddings from large language models with citation-based VOSviewer clustering and Callon strategic diagrams improves cluster labeling resolution and emerging topic detection.',
     affiliations: ['Leiden University, CWTS, Netherlands', 'University of Naples Federico II, Italy', 'Max Planck Society, Munich, Germany'],
     countries: ['Netherlands', 'Italy', 'Germany'],
+    correspondingCountry: 'Netherlands',
+    fundingAgencies: ['Horizon Europe / European Commission', 'Dutch Research Council (NWO)', 'German Research Foundation (DFG)'],
+    fundingText: 'Funded by Horizon Europe OpenSciGraph (Grant 10109412) and NWO.',
+    researchSubjects: ['Information Science & Library Science', 'Computer Science, Artificial Intelligence'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'Springer Nature',
     references: [
       'Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007',
       'Van Eck NJ, 2017, SCIENTOMETRICS, V111, P1053, DOI 10.1007/s11192-016-2225-6',
@@ -663,6 +833,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Combining semantic embeddings from large language models with citation-based VOSviewer clustering improves cluster labeling resolution.',
     affiliations: ['Leiden Univ, CWTS, Leiden, Netherlands', 'Univ Naples Federico II, Naples, Italy'],
     countries: ['Netherlands', 'Italy'],
+    correspondingCountry: 'Netherlands',
+    fundingAgencies: ['Horizon Europe / European Commission', 'Dutch Research Council (NWO)'],
+    researchSubjects: ['Information Science & Library Science', 'Computer Science, Artificial Intelligence'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'Springer Nature',
     references: [
       'Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007',
       'Van Eck NJ, 2010, SCIENTOMETRICS, V84, P523, DOI 10.1007/s11192-009-0146-3'
@@ -687,6 +863,13 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Radiographic imaging is integral to oncology detection, staging, and response monitoring. Artificial intelligence and deep radiomics quantify radiographic phenotypes beyond human visual perception.',
     affiliations: ['Harvard Medical School, United States', 'University of Chicago, United States', 'Maastricht University, Netherlands'],
     countries: ['United States', 'Netherlands'],
+    correspondingCountry: 'United States',
+    fundingAgencies: ['National Institutes of Health (NIH)', 'National Cancer Institute (NCI)', 'European Research Council (ERC)'],
+    fundingText: 'Supported by NIH/NCI U24CA194354 and European Research Council (ERC-2017-ADG).',
+    researchSubjects: ['Oncology', 'Radiology, Nuclear Medicine & Medical Imaging', 'Medical Informatics'],
+    openAccess: 'Green OA',
+    language: 'English',
+    publisher: 'Springer Nature',
     references: [
       'Esteva A, 2017, NATURE, V542, P115',
       'LeCun Y, 2015, NATURE, V521, P436',
@@ -712,6 +895,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Empirical evaluation of Bradford law of scattering and Lotka inverse-square law across 1.8 million OpenAlex, Scopus, and Web of Science records reveals shifts driven by open-access mega-journals and large collaborative consortia.',
     affiliations: ['Max Planck Society, Munich, Germany', 'ETH Zurich, Switzerland', 'University of Wolverhampton, United Kingdom'],
     countries: ['Germany', 'Switzerland', 'United Kingdom'],
+    correspondingCountry: 'Germany',
+    fundingAgencies: ['German Research Foundation (DFG)', 'Swiss National Science Foundation (SNSF)'],
+    researchSubjects: ['Information Science & Library Science', 'Statistics & Probability'],
+    openAccess: 'Closed',
+    language: 'English',
+    publisher: 'Elsevier',
     references: [
       'Bradford SC, 1934, ENGINEERING, V137, P85',
       'Lotka AJ, 1926, J WASH ACAD SCI, V16, P317',
@@ -739,6 +928,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Integrating structured electronic health records, unstructured clinical notes, and whole-slide histopathology images via cross-attention transformers substantially improves survival prediction.',
     affiliations: ['Harvard Medical School, United States', 'Stanford University, United States', 'Scripps Research Translational Institute, United States'],
     countries: ['United States'],
+    correspondingCountry: 'United States',
+    fundingAgencies: ['National Institutes of Health (NIH)', 'National Cancer Institute (NCI)'],
+    researchSubjects: ['Medicine, Research & Experimental', 'Medical Informatics', 'Oncology'],
+    openAccess: 'Hybrid OA',
+    language: 'English',
+    publisher: 'Springer Nature',
     references: [
       'Topol EJ, 2019, NAT MED, V25, P44, DOI 10.1038/s41591-018-0300-7',
       'Bi WL, 2019, NAT REV CANCER, V19, P530, DOI 10.1038/s41568-018-0016-5',
@@ -765,6 +960,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'We formalize the mathematical foundations of VOSviewer item density, cluster density, and temporal/citation overlay maps for large-scale bibliometric networks.',
     affiliations: ['Leiden University, CWTS, Netherlands'],
     countries: ['Netherlands'],
+    correspondingCountry: 'Netherlands',
+    fundingAgencies: ['Dutch Research Council (NWO)'],
+    researchSubjects: ['Information Science & Library Science', 'Computer Science, Information Systems'],
+    openAccess: 'Green OA',
+    language: 'English',
+    publisher: 'Elsevier',
     references: [
       'Van Eck NJ, 2010, SCIENTOMETRICS, V84, P523, DOI 10.1007/s11192-009-0146-3',
       'Van Eck NJ, 2017, SCIENTOMETRICS, V111, P1053, DOI 10.1007/s11192-016-2225-6',
@@ -791,6 +992,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Grounding medical large language models in curated biomedical knowledge graphs reduces clinical hallucination rates by 68% while producing traceable evidence citations.',
     affiliations: ['Harvard Medical School, United States', 'Stanford University, United States', 'ETH Zurich, Switzerland'],
     countries: ['United States', 'Switzerland'],
+    correspondingCountry: 'United States',
+    fundingAgencies: ['National Institutes of Health (NIH)', 'National Science Foundation (NSF)', 'Swiss National Science Foundation (SNSF)'],
+    researchSubjects: ['Medical Informatics', 'Computer Science, Artificial Intelligence', 'Bioinformatics & Computational Biology'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'Springer Nature',
     references: [
       'Moor M, 2023, NATURE, V616, P259, DOI 10.1038/s41586-023-05881-4',
       'Singhal K, 2023, NATURE, V620, P172, DOI 10.1038/s41586-023-06291-2',
@@ -816,6 +1023,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Grounding medical large language models in curated biomedical knowledge graphs reduces clinical hallucination rates while producing traceable citations.',
     affiliations: ['Harvard Medical School, United States', 'Stanford University, United States'],
     countries: ['United States'],
+    correspondingCountry: 'United States',
+    fundingAgencies: ['National Institutes of Health (NIH)', 'National Science Foundation (NSF)'],
+    researchSubjects: ['Medical Informatics', 'Computer Science, Artificial Intelligence'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'Springer Nature',
     references: [
       'Moor M, 2023, NATURE, V616, P259, DOI 10.1038/s41586-023-05881-4'
     ],
@@ -839,6 +1052,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'We demonstrate cross-border federated fine-tuning of multimodal clinical foundation models across 18 European and North American hospitals under strict differential privacy guarantees.',
     affiliations: ['Technical University of Munich, Germany', 'Medical University of Graz, Austria', 'King\'s College London, United Kingdom', 'Maastricht University, Netherlands'],
     countries: ['Germany', 'Austria', 'United Kingdom', 'Netherlands'],
+    correspondingCountry: 'Germany',
+    fundingAgencies: ['Horizon Europe / European Commission', 'European Research Council (ERC)', 'Wellcome Trust'],
+    researchSubjects: ['Computer Science, Artificial Intelligence', 'Medical Informatics', 'Health Care Sciences & Services'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'Elsevier',
     references: [
       'Rieke N, 2020, NPJ DIGIT MED, V3, P119, DOI 10.1038/s41746-020-00323-1',
       'Moor M, 2023, NATURE, V616, P259, DOI 10.1038/s41586-023-05881-4',
@@ -865,6 +1084,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'With over 1.6 billion open citation links now available through CrossRef and OpenCitations, researchers can reproduce bibliometric indicators and VOSviewer maps transparently.',
     affiliations: ['University of Bologna, Italy', 'University of Oxford, United Kingdom', 'Leiden University, CWTS, Netherlands', 'OurResearch, United States'],
     countries: ['Italy', 'United Kingdom', 'Netherlands', 'United States'],
+    correspondingCountry: 'Italy',
+    fundingAgencies: ['Arcadia Fund', 'Horizon Europe / European Commission', 'Wellcome Trust'],
+    researchSubjects: ['Information Science & Library Science', 'Data Science & Knowledge Graphs'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'MIT Press',
     references: [
       'Priem J, 2022, QUANT SCI STUD, V3, P1, DOI 10.48550/arXiv.2205.01833',
       'Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007',
@@ -891,6 +1116,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'By merging 18,400 records from Scopus, Web of Science, and PubMed, we map the shift in medical AI from classical machine learning and radiomics to multimodal foundation models and explainable clinical decision systems.',
     affiliations: ['University of Naples Federico II, Italy', 'University of Campania Luigi Vanvitelli, Italy', 'Medical University of Graz, Austria', 'Swinburne University of Technology, Australia'],
     countries: ['Italy', 'Austria', 'Australia'],
+    correspondingCountry: 'Italy',
+    fundingAgencies: ['Italian Ministry of University and Research (MUR)', 'Austrian Science Fund (FWF)'],
+    researchSubjects: ['Medical Informatics', 'Information Science & Library Science'],
+    openAccess: 'Hybrid OA',
+    language: 'English',
+    publisher: 'Elsevier',
     references: [
       'Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007',
       'Van Eck NJ, 2017, SCIENTOMETRICS, V111, P1053, DOI 10.1007/s11192-016-2225-6',
@@ -918,6 +1149,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'Continuous multi-database ingestion across OpenAlex, PubMed, CrossRef, and Scopus paired with graph-grounded reasoning enables real-time thematic mapping and hypothesis generation.',
     affiliations: ['Harvard Medical School, United States', 'Leiden University, CWTS, Netherlands', 'Scripps Research Translational Institute, United States'],
     countries: ['United States', 'Netherlands'],
+    correspondingCountry: 'United States',
+    fundingAgencies: ['National Institutes of Health (NIH)', 'National Science Foundation (NSF)', 'Arcadia Fund'],
+    researchSubjects: ['Multidisciplinary Sciences', 'Computer Science, Artificial Intelligence', 'Information Science & Library Science'],
+    openAccess: 'Gold OA',
+    language: 'English',
+    publisher: 'Springer Nature',
     references: [
       'Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007',
       'Moor M, 2023, NATURE, V616, P259, DOI 10.1038/s41586-023-05881-4',
@@ -928,7 +1165,7 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     databases: ['OpenAlex']
   },
 
-  // 27. Zupic & Cater (2015 -> 2019 Follow-up on Science Mapping in Management & Social Sciences)
+  // 27. Zupic & Cater
   {
     id: 'raw-wos-27',
     ut: 'WOS:000491029300014',
@@ -944,6 +1181,12 @@ export const INITIAL_RAW_RECORDS: BibRecord[] = [
     abstract: 'We provide a rigorous methodological workflow for designing, executing, and interpreting co-citation, bibliographic coupling, and co-word analyses across multidisciplinary databases.',
     affiliations: ['Goldsmiths, University of London, United Kingdom', 'University of Ljubljana, Slovenia', 'Georgia State University, United States'],
     countries: ['United Kingdom', 'Slovenia', 'United States'],
+    correspondingCountry: 'United Kingdom',
+    fundingAgencies: ['Slovenian Research Agency (ARRS)'],
+    researchSubjects: ['Business & Management', 'Information Science & Library Science'],
+    openAccess: 'Closed',
+    language: 'English',
+    publisher: 'SAGE Publications',
     references: [
       'Zupic I, 2015, ORGAN RES METHODS, V18, P429',
       'Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007',
@@ -963,9 +1206,9 @@ export const SAMPLE_FORMAT_FILES: Record<string, { filename: string; format: str
   scopusCsv: {
     filename: 'scopus_export_batch.csv',
     format: 'Scopus CSV',
-    content: `Authors,Author full names,Title,Year,Source title,Cited by,DOI,Author Keywords,Index Keywords,Affiliations,Abstract,References,Document Type,EID
-"Aria M.; Cuccurullo C.; Spano M.","Aria, Massimo; Cuccurullo, Corrado; Spano, Maria","Biblioshiny: Interactive science mapping and three-field plots for non-coders",2023,"Journal of Informetrics",385,"10.1016/j.joi.2023.101410","bibliometrics; science mapping; three-field plot; thematic map; r package","data visualization; vosviewer; citation analysis","University of Naples Federico II, Italy; University of Campania Luigi Vanvitelli, Italy","Biblioshiny brings the full analytical suite of the bibliometrix R package to an interactive web interface supporting multi-database imports.","Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007; Van Eck NJ, 2010, SCIENTOMETRICS, V84, P523","Article","2-s2.0-85161122334"
-"Topol E.J.; Rajpurkar P.; Moor M.","Topol, Eric J.; Rajpurkar, Pranav; Moor, Michael","Clinical validation of multimodal foundation models in diagnostic medicine",2025,"Nature Medicine",412,"10.1038/s41591-025-02991-0","foundation models; clinical decision support; multimodal learning; medical ai; diagnostic imaging","deep learning; electronic health records; trustworthy ai","Scripps Research Translational Institute, United States; Harvard Medical School, United States; Stanford University, United States","Prospective multi-center trials of multimodal clinical foundation models demonstrate significant reductions in diagnostic turnaround time.","Topol EJ, 2019, NAT MED, V25, P44, DOI 10.1038/s41591-018-0300-7; Moor M, 2023, NATURE, V616, P259, DOI 10.1038/s41586-023-05881-4","Article","2-s2.0-85199887766"`
+    content: `Authors,Author full names,Title,Year,Source title,Cited by,DOI,Author Keywords,Index Keywords,Affiliations,Funding Details,Subject Area,Open Access,Publisher,Language of Original Document,Abstract,References,Document Type,EID
+"Aria M.; Cuccurullo C.; Spano M.","Aria, Massimo; Cuccurullo, Corrado; Spano, Maria","Biblioshiny: Interactive science mapping and three-field plots for non-coders",2023,"Journal of Informetrics",385,"10.1016/j.joi.2023.101410","bibliometrics; science mapping; three-field plot; thematic map; r package","data visualization; vosviewer; citation analysis","University of Naples Federico II, Italy; University of Campania Luigi Vanvitelli, Italy","Italian Ministry of University and Research (MUR); NextGenerationEU","Information Science & Library Science; Computer Science, Software Engineering","Gold OA","Elsevier","English","Biblioshiny brings the full analytical suite of the bibliometrix R package to an interactive web interface supporting multi-database imports.","Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007; Van Eck NJ, 2010, SCIENTOMETRICS, V84, P523","Article","2-s2.0-85161122334"
+"Topol E.J.; Rajpurkar P.; Moor M.","Topol, Eric J.; Rajpurkar, Pranav; Moor, Michael","Clinical validation of multimodal foundation models in diagnostic medicine",2025,"Nature Medicine",412,"10.1038/s41591-025-02991-0","foundation models; clinical decision support; multimodal learning; medical ai; diagnostic imaging","deep learning; electronic health records; trustworthy ai","Scripps Research Translational Institute, United States; Harvard Medical School, United States; Stanford University, United States","National Institutes of Health (NIH); National Cancer Institute (NCI)","Medical Informatics; Medicine, Research & Experimental","Gold OA","Springer Nature","English","Prospective multi-center trials of multimodal clinical foundation models demonstrate significant reductions in diagnostic turnaround time.","Topol EJ, 2019, NAT MED, V25, P44, DOI 10.1038/s41591-018-0300-7; Moor M, 2023, NATURE, V616, P259, DOI 10.1038/s41586-023-05881-4","Article","2-s2.0-85199887766"`
   },
   wosPlaintext: {
     filename: 'wos_savedrecs.txt',
@@ -981,11 +1224,18 @@ AF Waltman, Ludo
    Peroni, Silvio
 TI Open bibliometric indicators and VOSviewer clustering using harmonized CrossRef and OpenAlex graphs
 SO SCIENTOMETRICS
+LA English
+PU Springer Nature
 DE vosviewer; open science; openalex; crossref; citation network
 ID bibliometrics; data harmonization; clustering; science mapping
 AB Harmonizing citation networks across Web of Science, Scopus, OpenAlex, and CrossRef enables reproducible VOSviewer modularity clustering.
 C1 [Waltman, Ludo; Van Eck, Nees Jan] Leiden Univ, CWTS, Leiden, Netherlands.
    [Peroni, Silvio] Univ Bologna, Bologna, Italy.
+FU Horizon Europe / European Commission [10109412]; Dutch Research Council (NWO)
+FX Funded by Horizon Europe Grant 10109412 and NWO.
+WC Information Science & Library Science; Computer Science, Information Systems
+SC Information Science & Library Science
+OA Gold OA
 CR Aria M, 2017, J INFORMETR, V11, P959, DOI 10.1016/j.joi.2017.08.007
    Van Eck NJ, 2017, SCIENTOMETRICS, V111, P1053, DOI 10.1007/s11192-016-2225-6
    Priem J, 2022, QUANT SCI STUD, V3, P1, DOI 10.48550/arXiv.2205.01833
@@ -1015,6 +1265,9 @@ AD  - Harvard Medical School, Boston, United States.
 FAU - Moor, Michael
 AU  - Moor M
 AD  - Stanford University, United States.
+LA  - eng
+GR  - UL1 TR002550/TR/NCATS NIH HHS/United States
+GR  - R01 CA258912/CA/NCI NIH HHS/United States
 JT  - Nature Medicine
 DP  - 2025 Feb
 MH  - Artificial Intelligence

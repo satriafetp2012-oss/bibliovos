@@ -1,31 +1,54 @@
 import React, { useState, useMemo } from 'react';
-import { BibRecord } from '../types/bibliometrics';
+import {
+  BibRecord,
+  StratifyDimension
+} from '../types/bibliometrics';
 import {
   computeHistoriograph,
   computeRPYS,
   computeThematicMap,
-  computeTrendTopics
+  computeTrendTopics,
+  partitionCorpusByStrata
 } from '../utils/bibliometricEngine';
+import { StratifiedCohortPanel } from './StratificationAndCharts';
 
 interface ConceptualAndRPYSViewProps {
   records: BibRecord[];
+  stratifyBy: StratifyDimension;
+  onChangeStratifyBy: (dim: StratifyDimension) => void;
 }
 
-export const ConceptualAndRPYSView: React.FC<ConceptualAndRPYSViewProps> = ({ records }) => {
+export const ConceptualAndRPYSView: React.FC<ConceptualAndRPYSViewProps> = ({
+  records,
+  stratifyBy,
+  onChangeStratifyBy
+}) => {
   const [thematicField, setThematicField] = useState<'authorKeywords' | 'indexKeywords'>(
     'authorKeywords'
   );
+  const [selectedCohortLabel, setSelectedCohortLabel] = useState<string>('ALL');
   const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
   const [selectedRpysYear, setSelectedRpysYear] = useState<number | null>(null);
   const [selectedHistNodeId, setSelectedHistNodeId] = useState<string | null>(null);
 
-  const thematicClusters = useMemo(
-    () => computeThematicMap(records, thematicField),
-    [records, thematicField]
+  const strata = useMemo(
+    () => partitionCorpusByStrata(records, stratifyBy === 'none' ? 'funding-status' : stratifyBy),
+    [records, stratifyBy]
   );
-  const trendTopics = useMemo(() => computeTrendTopics(records), [records]);
-  const rpysPoints = useMemo(() => computeRPYS(records), [records]);
-  const historiograph = useMemo(() => computeHistoriograph(records), [records]);
+
+  const activeRecords = useMemo(() => {
+    if (selectedCohortLabel === 'ALL') return records;
+    const found = strata.find((s) => s.label === selectedCohortLabel);
+    return found ? found.records : records;
+  }, [records, strata, selectedCohortLabel]);
+
+  const thematicClusters = useMemo(
+    () => computeThematicMap(activeRecords, thematicField),
+    [activeRecords, thematicField]
+  );
+  const trendTopics = useMemo(() => computeTrendTopics(activeRecords), [activeRecords]);
+  const rpysPoints = useMemo(() => computeRPYS(activeRecords), [activeRecords]);
+  const historiograph = useMemo(() => computeHistoriograph(activeRecords), [activeRecords]);
 
   const activeTheme =
     thematicClusters.find((t) => t.id === selectedThemeId) || thematicClusters[0] || null;
@@ -44,6 +67,55 @@ export const ConceptualAndRPYSView: React.FC<ConceptualAndRPYSViewProps> = ({ re
 
   return (
     <div className="space-y-6">
+      {/* Multi-Dimensional Stratified Cohort Comparison Panel */}
+      <StratifiedCohortPanel
+        records={records}
+        stratifyBy={stratifyBy}
+        onChangeStratifyBy={(dim) => {
+          onChangeStratifyBy(dim);
+          setSelectedCohortLabel('ALL');
+        }}
+        moduleTitle="Stratified Conceptual Structure & RPYS Cohort Benchmarking"
+      />
+
+      {/* Active Cohort Filter Bar for Conceptual & RPYS Diagrams */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <span className="font-medium text-slate-700 dark:text-slate-300">
+          Filter Thematic Map, Trend Topics & RPYS Spectroscopy by Cohort:
+        </span>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            onClick={() => setSelectedCohortLabel('ALL')}
+            className={`px-2.5 py-1 rounded font-medium transition-colors ${
+              selectedCohortLabel === 'ALL'
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+            }`}
+          >
+            All Corpus ({records.length})
+          </button>
+          {strata.map((st) => (
+            <button
+              key={st.id}
+              onClick={() => setSelectedCohortLabel(st.label)}
+              className={`px-2.5 py-1 rounded font-medium transition-colors flex items-center gap-1.5 ${
+                selectedCohortLabel === st.label
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+              }`}
+            >
+              <span
+                className="w-2 h-2 rounded-xs shrink-0"
+                style={{ backgroundColor: st.color }}
+              />
+              <span>
+                {st.label} ({st.documents})
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Row 1: Callon's Strategic Thematic Map & Trend Topics Evolution */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* Callon Strategic Thematic Map */}

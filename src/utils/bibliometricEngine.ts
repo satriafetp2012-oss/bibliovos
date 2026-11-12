@@ -1,14 +1,22 @@
 import {
   BibRecord,
   BradfordItem,
+  CountryCollaborationMetric,
+  FunderSubjectMatrix,
+  FundingAgencyMetric,
   HistoriographEdge,
   HistoriographNode,
   ImpactEntity,
   LotkaItem,
+  MetadataBreakdownItem,
+  ResearchSubjectMetric,
   RPYSPoint,
   SankeyFieldType,
   SankeyLink,
   SankeyNode,
+  StratifiedAnnualPoint,
+  StratifyDimension,
+  StratumGroup,
   ThematicCluster,
   TrendTopicItem,
   VOSAnalysisType,
@@ -37,6 +45,16 @@ function extractItemsForVOS(
   analysisType: VOSAnalysisType,
   unit: VOSUnitOfAnalysis
 ): string[] {
+  if (unit === 'research-subjects') {
+    return record.researchSubjects && record.researchSubjects.length > 0
+      ? record.researchSubjects
+      : ['Multidisciplinary Sciences'];
+  }
+  if (unit === 'funding-agencies') {
+    return record.fundingAgencies && record.fundingAgencies.length > 0
+      ? record.fundingAgencies
+      : [];
+  }
   if (analysisType === 'co-occurrence') {
     if (unit === 'author-keywords') return record.authorKeywords;
     if (unit === 'index-keywords') return record.indexKeywords;
@@ -78,7 +96,6 @@ export function buildVOSNetwork(
     }
   >();
 
-  // Mean citations per year for normalized citations
   const yearCitationAvg = new Map<number, { sum: number; count: number }>();
   for (const rec of records) {
     const cur = yearCitationAvg.get(rec.year) || { sum: 0, count: 0 };
@@ -113,7 +130,6 @@ export function buildVOSNetwork(
     }
   }
 
-  // Filter by minOccurrences and cap at maxNodes
   const eligible = Array.from(itemStats.entries())
     .filter(([, st]) => st.count >= minOccurrences)
     .sort((a, b) => b[1].count - a[1].count || b[1].citations - a[1].citations)
@@ -138,7 +154,6 @@ export function buildVOSNetwork(
       }
     }
   } else if (analysisType === 'bibliographic-coupling') {
-    // Weight by shared cited references or shared keywords
     for (let i = 0; i < eligible.length; i++) {
       for (let j = i + 1; j < eligible.length; j++) {
         const [itemA, stA] = eligible[i];
@@ -151,7 +166,6 @@ export function buildVOSNetwork(
       }
     }
   } else {
-    // Citation / Co-citation network
     for (let i = 0; i < eligible.length; i++) {
       for (let j = i + 1; j < eligible.length; j++) {
         const [itemA, stA] = eligible[i];
@@ -160,7 +174,6 @@ export function buildVOSNetwork(
         stA.refs.forEach((r) => {
           if (stB.refs.has(r)) coupling++;
         });
-        // Also check if one cites the other or shares co-occurrence in records
         const sharedRecs = stA.recordIds.filter((id) => stB.recordIds.includes(id)).length;
         const weight = coupling + sharedRecs;
         if (weight > 0) addEdgeWeight(itemA, itemB, weight);
@@ -186,7 +199,6 @@ export function buildVOSNetwork(
     adjacency.get(target)?.set(source, strength);
   });
 
-  // Ensure sparse graphs still have backbone links so visualization is cohesive
   if (links.length === 0 && eligible.length > 1) {
     for (let i = 0; i < eligible.length - 1; i++) {
       const s = eligible[i][0];
@@ -199,7 +211,6 @@ export function buildVOSNetwork(
     }
   }
 
-  // Greedy Modularity / Label Propagation Clustering with Resolution control
   const targetClusterCount = Math.max(
     2,
     Math.min(8, Math.round(3 * resolution + eligible.length / 14))
@@ -221,8 +232,8 @@ export function buildVOSNetwork(
       let bestCluster = clusterMap.get(label) ?? 0;
       let bestScore = -1;
       clusterScores.forEach((score, c) => {
-        // Penalize oversized clusters slightly to keep balanced VOS clusters
-        const sizePenalty = Array.from(clusterMap.values()).filter((v) => v === c).length * (0.12 / resolution);
+        const sizePenalty =
+          Array.from(clusterMap.values()).filter((v) => v === c).length * (0.12 / resolution);
         const adjusted = score - sizePenalty;
         if (adjusted > bestScore) {
           bestScore = adjusted;
@@ -233,7 +244,6 @@ export function buildVOSNetwork(
     }
   }
 
-  // Re-index clusters sequentially 1..K by size
   const rawClusterGroups = new Map<number, string[]>();
   eligible.forEach(([label]) => {
     const c = clusterMap.get(label) ?? 0;
@@ -249,7 +259,8 @@ export function buildVOSNetwork(
     members.forEach((m) => normalizedClusterId.set(m, idx + 1));
   });
 
-  // Deterministic VOS Force-Directed Layout around cluster centroids
+  const recById = new Map(records.map((r) => [r.id, r]));
+
   const nodes: VOSNode[] = eligible.map(([label, st], index) => {
     const cluster = normalizedClusterId.get(label) || 1;
     const clusterAngle = ((cluster - 1) / Math.max(1, sortedClusters.length)) * Math.PI * 2;
@@ -262,6 +273,26 @@ export function buildVOSNetwork(
     const fieldMean = yearBase && yearBase.count > 0 ? yearBase.sum / yearBase.count : 500;
     const normCitations = Number((avgCitations / Math.max(1, fieldMean)).toFixed(2));
 
+    const nodeRecs = st.recordIds
+      .map((id) => recById.get(id))
+      .filter((r): r is BibRecord => Boolean(r));
+    const nTotal = Math.max(1, nodeRecs.length);
+    const fundedSharePct = Number(
+      (
+        (nodeRecs.filter((r) => (r.fundingAgencies || []).length > 0).length / nTotal) *
+        100
+      ).toFixed(0)
+    );
+    const openAccessSharePct = Number(
+      (
+        (nodeRecs.filter((r) => (r.openAccess || 'Gold OA') !== 'Closed').length / nTotal) *
+        100
+      ).toFixed(0)
+    );
+    const mcpSharePct = Number(
+      ((nodeRecs.filter((r) => r.countries.length > 1).length / nTotal) * 100).toFixed(0)
+    );
+
     return {
       id: label,
       label,
@@ -272,16 +303,17 @@ export function buildVOSNetwork(
       avgYear,
       avgCitations,
       normCitations,
+      fundedSharePct,
+      openAccessSharePct,
+      mcpSharePct,
       x: Math.cos(clusterAngle) * 0.48 + Math.cos(localAngle) * localRadius,
       y: Math.sin(clusterAngle) * 0.48 + Math.sin(localAngle) * localRadius,
       recordIds: st.recordIds
     };
   });
 
-  // Iterative spring-repulsion relaxation for organic VOSviewer spatial separation
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
   for (let step = 0; step < 65; step++) {
-    // Repulsion between all node pairs
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
         const a = nodes[i];
@@ -302,7 +334,6 @@ export function buildVOSNetwork(
         }
       }
     }
-    // Attraction along links
     for (const link of links) {
       const s = nodeById.get(link.source);
       const t = nodeById.get(link.target);
@@ -317,7 +348,6 @@ export function buildVOSNetwork(
     }
   }
 
-  // Normalize x, y to [-0.86, 0.86]
   if (nodes.length > 0) {
     const xs = nodes.map((n) => n.x);
     const ys = nodes.map((n) => n.y);
@@ -475,6 +505,16 @@ export function computeThreeFieldSankey(
         return rec.countries;
       case 'affiliations':
         return rec.affiliations.map((a) => a.split(',')[0].trim()).filter(Boolean);
+      case 'fundingAgencies':
+        return rec.fundingAgencies && rec.fundingAgencies.length > 0
+          ? rec.fundingAgencies
+          : ['Unfunded / Not Reported'];
+      case 'researchSubjects':
+        return rec.researchSubjects && rec.researchSubjects.length > 0
+          ? rec.researchSubjects
+          : ['Multidisciplinary Sciences'];
+      case 'openAccess':
+        return [rec.openAccess || 'Gold OA'];
     }
   };
 
@@ -799,7 +839,6 @@ export function computeThematicMap(
   const maxD = Math.max(...rawThemes.map((t) => t.densityRaw));
 
   return rawThemes.map((t, idx) => {
-    // Spread nicely across [15, 88] around 50 midpoint
     const normC =
       maxC > minC
         ? Number((16 + ((t.centralityRaw - minC) / (maxC - minC)) * 72).toFixed(1))
@@ -893,7 +932,6 @@ export function computeRPYS(records: BibRecord[]): RPYSPoint[] {
 
   const points: RPYSPoint[] = sortedYears.map((year) => {
     const entry = yearCounts.get(year)!;
-    // 5-year window [year-2 .. year+2]
     const windowCounts: number[] = [];
     for (let wy = year - 2; wy <= year + 2; wy++) {
       windowCounts.push(yearCounts.get(wy)?.count || 0);
@@ -987,3 +1025,544 @@ export function computeHistoriograph(records: BibRecord[]): {
 
   return { nodes, edges };
 }
+
+function calcHIndex(citations: number[]): number {
+  const sorted = [...citations].sort((a, b) => b - a);
+  let h = 0;
+  for (let i = 0; i < sorted.length; i++) {
+    if (sorted[i] >= i + 1) h = i + 1;
+  }
+  return h;
+}
+
+/**
+ * Computes comprehensive Funding Agencies (FU/FX), Research Subjects (SC/WC),
+ * Country Collaboration (SCP/MCP), and Extended Metadata (OA, Document Type, Publisher, Language) analytics.
+ */
+export function computeFundingAndMetadataAnalytics(records: BibRecord[]) {
+  const totalDocs = Math.max(1, records.length);
+
+  const fundedRecords = records.filter((r) => (r.fundingAgencies || []).length > 0);
+  const unfundedRecords = records.filter((r) => (r.fundingAgencies || []).length === 0);
+
+  const fundedDocsCount = fundedRecords.length;
+  const unfundedDocsCount = unfundedRecords.length;
+  const fundedSharePct = Number(((fundedDocsCount / totalDocs) * 100).toFixed(1));
+
+  const fundedAvgCitations =
+    fundedDocsCount > 0
+      ? Number(
+          (fundedRecords.reduce((s, r) => s + r.citations, 0) / fundedDocsCount).toFixed(1)
+        )
+      : 0;
+  const unfundedAvgCitations =
+    unfundedDocsCount > 0
+      ? Number(
+          (unfundedRecords.reduce((s, r) => s + r.citations, 0) / unfundedDocsCount).toFixed(1)
+        )
+      : 0;
+  const citationAdvantageRatio =
+    unfundedAvgCitations > 0
+      ? Number((fundedAvgCitations / unfundedAvgCitations).toFixed(2))
+      : 1.0;
+
+  // 1. Funding Agency Performance
+  const agencyMap = new Map<string, BibRecord[]>();
+  for (const r of records) {
+    for (const agency of r.fundingAgencies || []) {
+      const list = agencyMap.get(agency) || [];
+      list.push(r);
+      agencyMap.set(agency, list);
+    }
+  }
+
+  const fundingAgencies: FundingAgencyMetric[] = Array.from(agencyMap.entries())
+    .map(([agency, docs]) => {
+      const cits = docs.map((d) => d.citations);
+      const totalCitations = cits.reduce((s, c) => s + c, 0);
+      const oaCount = docs.filter((d) => (d.openAccess || 'Gold OA') !== 'Closed').length;
+
+      const subjCounts = new Map<string, number>();
+      const countryCounts = new Map<string, number>();
+      docs.forEach((d) => {
+        (d.researchSubjects || []).forEach((s) => subjCounts.set(s, (subjCounts.get(s) || 0) + 1));
+        d.countries.forEach((c) => countryCounts.set(c, (countryCounts.get(c) || 0) + 1));
+      });
+
+      const topSubjects = Array.from(subjCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 2)
+        .map(([s]) => s);
+      const topCountries = Array.from(countryCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([c]) => c);
+
+      return {
+        agency,
+        documents: docs.length,
+        sharePct: Number(((docs.length / totalDocs) * 100).toFixed(1)),
+        totalCitations,
+        avgCitations: Number((totalCitations / docs.length).toFixed(1)),
+        hIndex: calcHIndex(cits),
+        openAccessPct: Number(((oaCount / docs.length) * 100).toFixed(0)),
+        topSubjects,
+        topCountries
+      };
+    })
+    .sort((a, b) => b.documents - a.documents || b.totalCitations - a.totalCitations);
+
+  // 2. Research Subject Categories (SC / WC)
+  const subjectMap = new Map<string, BibRecord[]>();
+  const allYears = Array.from(new Set(records.map((r) => r.year))).sort((a, b) => a - b);
+
+  for (const r of records) {
+    const subjs =
+      r.researchSubjects && r.researchSubjects.length > 0
+        ? r.researchSubjects
+        : ['Multidisciplinary Sciences'];
+    for (const subj of subjs) {
+      const list = subjectMap.get(subj) || [];
+      list.push(r);
+      subjectMap.set(subj, list);
+    }
+  }
+
+  const researchSubjects: ResearchSubjectMetric[] = Array.from(subjectMap.entries())
+    .map(([subject, docs]) => {
+      const cits = docs.map((d) => d.citations);
+      const totalCitations = cits.reduce((s, c) => s + c, 0);
+      const fundedInSubj = docs.filter((d) => (d.fundingAgencies || []).length > 0).length;
+
+      const funderCounts = new Map<string, number>();
+      docs.forEach((d) => {
+        (d.fundingAgencies || []).forEach((f) =>
+          funderCounts.set(f, (funderCounts.get(f) || 0) + 1)
+        );
+      });
+      const topFundingAgencies = Array.from(funderCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 2)
+        .map(([f]) => f);
+
+      const yearlyCounts = allYears.map((year) => ({
+        year,
+        count: docs.filter((d) => d.year === year).length
+      }));
+
+      return {
+        subject,
+        documents: docs.length,
+        sharePct: Number(((docs.length / totalDocs) * 100).toFixed(1)),
+        totalCitations,
+        avgCitations: Number((totalCitations / docs.length).toFixed(1)),
+        hIndex: calcHIndex(cits),
+        fundedPct: Number(((fundedInSubj / docs.length) * 100).toFixed(0)),
+        topFundingAgencies,
+        yearlyCounts
+      };
+    })
+    .sort((a, b) => b.documents - a.documents || b.totalCitations - a.totalCitations);
+
+  // 3. Funder <-> Research Subject Cross-Matrix
+  const pairMap = new Map<string, { funder: string; subject: string; count: number; citations: number }>();
+  for (const r of records) {
+    const funders = r.fundingAgencies || [];
+    const subjs = r.researchSubjects || ['Multidisciplinary Sciences'];
+    for (const f of funders) {
+      for (const s of subjs) {
+        const key = `${f}|||${s}`;
+        const cur = pairMap.get(key) || { funder: f, subject: s, count: 0, citations: 0 };
+        cur.count += 1;
+        cur.citations += r.citations;
+        pairMap.set(key, cur);
+      }
+    }
+  }
+  const funderSubjectFlows = Array.from(pairMap.values()).sort(
+    (a, b) => b.count - a.count || b.citations - a.citations
+  );
+
+  // 4. Country Collaboration (SCP vs MCP)
+  const countryDocsMap = new Map<string, BibRecord[]>();
+  for (const r of records) {
+    for (const c of r.countries) {
+      const list = countryDocsMap.get(c) || [];
+      list.push(r);
+      countryDocsMap.set(c, list);
+    }
+  }
+
+  const countryCollaboration: CountryCollaborationMetric[] = Array.from(
+    countryDocsMap.entries()
+  )
+    .map(([country, docs]) => {
+      const scp = docs.filter((d) => d.countries.length === 1).length;
+      const mcp = docs.filter((d) => d.countries.length > 1).length;
+      const totalCitations = docs.reduce((s, d) => s + d.citations, 0);
+      const fundedDocs = docs.filter((d) => (d.fundingAgencies || []).length > 0).length;
+
+      return {
+        country,
+        totalDocuments: docs.length,
+        scp,
+        mcp,
+        mcpRatioPct: Number(((mcp / docs.length) * 100).toFixed(1)),
+        totalCitations,
+        avgCitations: Number((totalCitations / docs.length).toFixed(1)),
+        fundedDocs
+      };
+    })
+    .sort((a, b) => b.totalDocuments - a.totalDocuments || b.totalCitations - a.totalCitations);
+
+  // 5. Extended Metadata Breakdowns (Open Access, Document Type, Publisher, Language)
+  const buildBreakdown = (getter: (r: BibRecord) => string): MetadataBreakdownItem[] => {
+    const map = new Map<string, { count: number; citations: number }>();
+    for (const r of records) {
+      const label = getter(r) || 'Unspecified';
+      const cur = map.get(label) || { count: 0, citations: 0 };
+      cur.count += 1;
+      cur.citations += r.citations;
+      map.set(label, cur);
+    }
+    return Array.from(map.entries())
+      .map(([label, val]) => ({
+        label,
+        count: val.count,
+        sharePct: Number(((val.count / totalDocs) * 100).toFixed(1)),
+        totalCitations: val.citations,
+        avgCitations: Number((val.citations / val.count).toFixed(1))
+      }))
+      .sort((a, b) => b.count - a.count || b.totalCitations - a.totalCitations);
+  };
+
+  // 6. Annual Funding Trend Series (Funded vs Unfunded + Top Sponsors by Year)
+  const annualFundingSeries = allYears.map((year) => {
+    const yrDocs = records.filter((r) => r.year === year);
+    const yrFunded = yrDocs.filter((r) => (r.fundingAgencies || []).length > 0);
+    const yrUnfunded = yrDocs.filter((r) => (r.fundingAgencies || []).length === 0);
+    const fundedCit = yrFunded.reduce((s, r) => s + r.citations, 0);
+    const unfundedCit = yrUnfunded.reduce((s, r) => s + r.citations, 0);
+
+    return {
+      year,
+      totalDocs: yrDocs.length,
+      fundedDocs: yrFunded.length,
+      unfundedDocs: yrUnfunded.length,
+      fundedSharePct: yrDocs.length > 0 ? Math.round((yrFunded.length / yrDocs.length) * 100) : 0,
+      fundedCitations: fundedCit,
+      unfundedCitations: unfundedCit,
+      fundedMeanTc: yrFunded.length > 0 ? Number((fundedCit / yrFunded.length).toFixed(1)) : 0,
+      unfundedMeanTc:
+        yrUnfunded.length > 0 ? Number((unfundedCit / yrUnfunded.length).toFixed(1)) : 0
+    };
+  });
+
+  // 7. 2D Funder x Research Subject Heatmap Matrix
+  const topFundersForMatrix = fundingAgencies.slice(0, 7).map((f) => f.agency);
+  const topSubjectsForMatrix = researchSubjects.slice(0, 6).map((s) => s.subject);
+  const matrixCells: FunderSubjectMatrix['cells'] = {};
+  let maxCellCount = 1;
+
+  for (const funder of topFundersForMatrix) {
+    for (const subject of topSubjectsForMatrix) {
+      const matched = records.filter(
+        (r) =>
+          (r.fundingAgencies || []).includes(funder) &&
+          (r.researchSubjects && r.researchSubjects.length > 0
+            ? r.researchSubjects
+            : ['Multidisciplinary Sciences']
+          ).includes(subject)
+      );
+      const totalCitations = matched.reduce((s, r) => s + r.citations, 0);
+      const count = matched.length;
+      if (count > maxCellCount) maxCellCount = count;
+      matrixCells[`${funder}|||${subject}`] = {
+        funder,
+        subject,
+        count,
+        totalCitations,
+        avgCitations: count > 0 ? Number((totalCitations / count).toFixed(1)) : 0
+      };
+    }
+  }
+
+  const funderSubjectMatrix: FunderSubjectMatrix = {
+    funders: topFundersForMatrix,
+    subjects: topSubjectsForMatrix,
+    cells: matrixCells,
+    maxCellCount
+  };
+
+  return {
+    fundedDocsCount,
+    unfundedDocsCount,
+    fundedSharePct,
+    fundedAvgCitations,
+    unfundedAvgCitations,
+    citationAdvantageRatio,
+    uniqueFundingAgenciesCount: fundingAgencies.length,
+    uniqueSubjectsCount: researchSubjects.length,
+    fundingAgencies,
+    researchSubjects,
+    funderSubjectFlows,
+    funderSubjectMatrix,
+    annualFundingSeries,
+    countryCollaboration,
+    openAccessBreakdown: buildBreakdown((r) => r.openAccess || 'Gold OA'),
+    docTypeBreakdown: buildBreakdown((r) => r.docType || 'Article'),
+    publisherBreakdown: buildBreakdown((r) => r.publisher || 'Academic Press'),
+    languageBreakdown: buildBreakdown((r) => r.language || 'English')
+  };
+}
+
+export const STRATUM_PALETTE = [
+  '#2563EB', // Cobalt Blue
+  '#10B981', // Emerald Green
+  '#F59E0B', // Amber Gold
+  '#7C3AED', // Royal Violet
+  '#06B6D4', // Cyan Teal
+  '#F43F5E', // Rose Crimson
+  '#64748B'  // Neutral Slate
+];
+
+export const STRATIFY_DIMENSION_LABELS: Record<StratifyDimension, string> = {
+  none: 'No Stratification (Unified Corpus)',
+  'funding-status': 'Funding Status (Funded vs. Unfunded)',
+  'funding-agency': 'Top Funding Agencies / Sponsors (FU)',
+  'research-subject': 'Research Subject Categories (SC/WC)',
+  'open-access': 'Open Access Status Tiers (OA)',
+  database: 'Source Database Provenance (DB)',
+  'collaboration-type': 'Collaboration Type (Single SCP vs. Intl MCP)',
+  'publication-era': 'Publication Era (2017–2020 vs. 2021–2026)'
+};
+
+function calcGIndex(citations: number[]): number {
+  const sorted = [...citations].sort((a, b) => b - a);
+  let g = 0;
+  let cum = 0;
+  for (let i = 0; i < sorted.length; i++) {
+    cum += sorted[i];
+    if (cum >= (i + 1) * (i + 1)) g = i + 1;
+  }
+  return g;
+}
+
+function calcAnnualGrowthRate(records: BibRecord[]): number {
+  if (records.length < 2) return 0;
+  const years = records.map((r) => r.year);
+  const minY = Math.min(...years);
+  const maxY = Math.max(...years);
+  if (maxY <= minY) return 0;
+  const firstCount = Math.max(1, records.filter((r) => r.year === minY).length);
+  const lastCount = Math.max(1, records.filter((r) => r.year === maxY).length);
+  return Number(((Math.pow(lastCount / firstCount, 1 / (maxY - minY)) - 1) * 100).toFixed(1));
+}
+
+/**
+ * Classifies a single BibRecord into one or more stratum labels for a given StratifyDimension.
+ * Returns the primary stratum label (and full list of labels for multi-valued fields).
+ */
+export function getRecordStrataLabels(
+  rec: BibRecord,
+  dimension: StratifyDimension,
+  topCategories?: string[]
+): string[] {
+  switch (dimension) {
+    case 'funding-status':
+      return (rec.fundingAgencies || []).length > 0
+        ? ['Funded Research (FU)']
+        : ['Unfunded / No Grant Reported'];
+    case 'funding-agency': {
+      const agencies = rec.fundingAgencies || [];
+      if (agencies.length === 0) return ['Unfunded'];
+      if (topCategories && topCategories.length > 0) {
+        const matched = agencies.filter((a) => topCategories.includes(a));
+        return matched.length > 0 ? matched : ['Other Funding Agencies'];
+      }
+      return agencies;
+    }
+    case 'research-subject': {
+      const subjs =
+        rec.researchSubjects && rec.researchSubjects.length > 0
+          ? rec.researchSubjects
+          : ['Multidisciplinary Sciences'];
+      if (topCategories && topCategories.length > 0) {
+        const matched = subjs.filter((s) => topCategories.includes(s));
+        return matched.length > 0 ? matched : ['Other Research Subjects'];
+      }
+      return subjs;
+    }
+    case 'open-access':
+      return [rec.openAccess || 'Gold OA'];
+    case 'database':
+      return rec.databases && rec.databases.length > 0 ? rec.databases : ['Scopus'];
+    case 'collaboration-type':
+      return rec.countries.length > 1
+        ? ['Multi-Country (MCP · International)']
+        : ['Single-Country (SCP · Domestic)'];
+    case 'publication-era':
+      return rec.year <= 2020
+        ? ['Foundational Era (2017–2020)']
+        : ['Modern Acceleration (2021–2026)'];
+    default:
+      return ['All Documents'];
+  }
+}
+
+/**
+ * Partitions the corpus into color-coded StratumGroup cohorts with full scientometric KPIs.
+ */
+export function partitionCorpusByStrata(
+  records: BibRecord[],
+  dimension: StratifyDimension
+): StratumGroup[] {
+  const totalDocs = Math.max(1, records.length);
+  if (dimension === 'none') {
+    const cits = records.map((r) => r.citations);
+    const totalCitations = cits.reduce((s, c) => s + c, 0);
+    return [
+      {
+        id: 'all',
+        label: 'All Harmonized Documents',
+        color: STRATUM_PALETTE[0],
+        records,
+        documents: records.length,
+        sharePct: 100,
+        totalCitations,
+        avgCitations: Number((totalCitations / totalDocs).toFixed(1)),
+        hIndex: calcHIndex(cits),
+        gIndex: calcGIndex(cits),
+        fundedPct: Number(
+          (
+            (records.filter((r) => (r.fundingAgencies || []).length > 0).length / totalDocs) *
+            100
+          ).toFixed(1)
+        ),
+        openAccessPct: Number(
+          (
+            (records.filter((r) => (r.openAccess || 'Gold OA') !== 'Closed').length / totalDocs) *
+            100
+          ).toFixed(1)
+        ),
+        mcpPct: Number(
+          ((records.filter((r) => r.countries.length > 1).length / totalDocs) * 100).toFixed(1)
+        ),
+        annualGrowthPct: calcAnnualGrowthRate(records)
+      }
+    ];
+  }
+
+  // Determine top categories for high-cardinality dimensions (funding-agency, research-subject)
+  let topCategories: string[] | undefined;
+  if (dimension === 'funding-agency' || dimension === 'research-subject') {
+    const rawCounts = new Map<string, number>();
+    for (const r of records) {
+      const items =
+        dimension === 'funding-agency'
+          ? r.fundingAgencies || []
+          : r.researchSubjects && r.researchSubjects.length > 0
+          ? r.researchSubjects
+          : ['Multidisciplinary Sciences'];
+      for (const item of items) {
+        rawCounts.set(item, (rawCounts.get(item) || 0) + 1);
+      }
+    }
+    topCategories = Array.from(rawCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([k]) => k);
+  }
+
+  const groupMap = new Map<string, BibRecord[]>();
+  for (const r of records) {
+    const labels = getRecordStrataLabels(r, dimension, topCategories);
+    for (const label of labels) {
+      const list = groupMap.get(label) || [];
+      list.push(r);
+      groupMap.set(label, list);
+    }
+  }
+
+  const sortedEntries = Array.from(groupMap.entries()).sort(
+    (a, b) => b[1].length - a[1].length
+  );
+
+  return sortedEntries.map(([label, groupRecs], idx) => {
+    const gTotal = Math.max(1, groupRecs.length);
+    const cits = groupRecs.map((r) => r.citations);
+    const totalCitations = cits.reduce((s, c) => s + c, 0);
+
+    return {
+      id: `stratum-${idx}-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+      label,
+      color: STRATUM_PALETTE[idx % STRATUM_PALETTE.length],
+      records: groupRecs,
+      documents: groupRecs.length,
+      sharePct: Number(((groupRecs.length / totalDocs) * 100).toFixed(1)),
+      totalCitations,
+      avgCitations: Number((totalCitations / gTotal).toFixed(1)),
+      hIndex: calcHIndex(cits),
+      gIndex: calcGIndex(cits),
+      fundedPct: Number(
+        (
+          (groupRecs.filter((r) => (r.fundingAgencies || []).length > 0).length / gTotal) *
+          100
+        ).toFixed(0)
+      ),
+      openAccessPct: Number(
+        (
+          (groupRecs.filter((r) => (r.openAccess || 'Gold OA') !== 'Closed').length / gTotal) *
+          100
+        ).toFixed(0)
+      ),
+      mcpPct: Number(
+        ((groupRecs.filter((r) => r.countries.length > 1).length / gTotal) * 100).toFixed(0)
+      ),
+      annualGrowthPct: calcAnnualGrowthRate(groupRecs)
+    };
+  });
+}
+
+/**
+ * Computes annual publication and citation time series stratified across the selected dimension.
+ */
+export function computeStratifiedAnnualSeries(
+  records: BibRecord[],
+  dimension: StratifyDimension
+): {
+  years: number[];
+  strata: StratumGroup[];
+  series: StratifiedAnnualPoint[];
+} {
+  const strata = partitionCorpusByStrata(records, dimension);
+  const years = Array.from(new Set(records.map((r) => r.year))).sort((a, b) => a - b);
+
+  const series: StratifiedAnnualPoint[] = years.map((year) => {
+    const yrRecs = records.filter((r) => r.year === year);
+    const totalArticles = yrRecs.length;
+    const totalCit = yrRecs.reduce((s, r) => s + r.citations, 0);
+    const meanTcPerArt =
+      totalArticles > 0 ? Number((totalCit / totalArticles).toFixed(1)) : 0;
+
+    const strataCounts: Record<string, number> = {};
+    const strataCitations: Record<string, number> = {};
+
+    for (const st of strata) {
+      const stYearRecs = st.records.filter((r) => r.year === year);
+      strataCounts[st.label] = stYearRecs.length;
+      strataCitations[st.label] = stYearRecs.reduce((s, r) => s + r.citations, 0);
+    }
+
+    return {
+      year,
+      totalArticles,
+      meanTcPerArt,
+      strataCounts,
+      strataCitations
+    };
+  });
+
+  return { years, strata, series };
+}
+

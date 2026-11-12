@@ -17,17 +17,20 @@ import {
 import { INITIAL_RAW_RECORDS } from './data/sampleCorpus';
 import {
   BibRecord,
-  DatabaseSource
+  DatabaseSource,
+  StratifyDimension
 } from './types/bibliometrics';
 import {
   exportMasterCorpus,
   harmonizeAndDeduplicate
 } from './utils/parsersAndDeduplication';
+import { STRATIFY_DIMENSION_LABELS } from './utils/bibliometricEngine';
 import { DataMergerView } from './components/DataMergerView';
 import { VOSViewerStudio } from './components/VOSViewerStudio';
 import { OverviewAndSankeyView } from './components/OverviewAndSankeyView';
 import { SourcesAndAuthorsView } from './components/SourcesAndAuthorsView';
 import { ConceptualAndRPYSView } from './components/ConceptualAndRPYSView';
+import { FundingAndMetadataView } from './components/FundingAndMetadataView';
 import { PWAInstallControl, OfflineIndicator } from './components/PWAInstallControl';
 
 type ActiveModule =
@@ -35,10 +38,11 @@ type ActiveModule =
   | 'vosviewer'
   | 'overview'
   | 'sources-authors'
+  | 'funding-metadata'
   | 'conceptual-rpys';
 
-const STORAGE_KEY_RECORDS = 'bibliovos_raw_records_v1';
-const STORAGE_KEY_SPLITS = 'bibliovos_split_pairs_v1';
+const STORAGE_KEY_RECORDS = 'bibliovos_raw_records_v2';
+const STORAGE_KEY_SPLITS = 'bibliovos_split_pairs_v2';
 
 export default function App() {
   const [activeModule, setActiveModule] = useState<ActiveModule>('merger');
@@ -67,6 +71,9 @@ export default function App() {
     return new Set();
   });
   const [globalDbFilter, setGlobalDbFilter] = useState<string>('ALL');
+  const [globalSubjectFilter, setGlobalSubjectFilter] = useState<string>('ALL');
+  const [globalFundingFilter, setGlobalFundingFilter] = useState<'ALL' | 'FUNDED' | 'UNFUNDED'>('ALL');
+  const [globalStratifyBy, setGlobalStratifyBy] = useState<StratifyDimension>('funding-status');
   const [minYearFilter, setMinYearFilter] = useState<number>(2017);
   const [maxYearFilter, setMaxYearFilter] = useState<number>(2026);
   const [darkMode, setDarkMode] = useState<boolean>(false);
@@ -98,6 +105,19 @@ export default function App() {
     [rawRecords, splitPairIds]
   );
 
+  // Extract distinct research subjects across master corpus for global filter
+  const availableSubjects = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const rec of masterRecords) {
+      for (const subj of rec.researchSubjects ?? []) {
+        counts.set(subj, (counts.get(subj) || 0) + 1);
+      }
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([subj]) => subj);
+  }, [masterRecords]);
+
   // Global filtered master corpus feeding VOSviewer and Bibliometrix views
   const activeCorpus = useMemo(() => {
     return masterRecords.filter((rec) => {
@@ -108,9 +128,28 @@ export default function App() {
       ) {
         return false;
       }
+      if (
+        globalSubjectFilter !== 'ALL' &&
+        !(rec.researchSubjects ?? []).includes(globalSubjectFilter)
+      ) {
+        return false;
+      }
+      if (globalFundingFilter === 'FUNDED' && (rec.fundingAgencies ?? []).length === 0) {
+        return false;
+      }
+      if (globalFundingFilter === 'UNFUNDED' && (rec.fundingAgencies ?? []).length > 0) {
+        return false;
+      }
       return true;
     });
-  }, [masterRecords, minYearFilter, maxYearFilter, globalDbFilter]);
+  }, [
+    masterRecords,
+    minYearFilter,
+    maxYearFilter,
+    globalDbFilter,
+    globalSubjectFilter,
+    globalFundingFilter
+  ]);
 
   const handleAddRawRecords = (incoming: BibRecord[]) => {
     setRawRecords((prev) => [...prev, ...incoming]);
@@ -129,6 +168,9 @@ export default function App() {
     setRawRecords(INITIAL_RAW_RECORDS);
     setSplitPairIds(new Set());
     setGlobalDbFilter('ALL');
+    setGlobalSubjectFilter('ALL');
+    setGlobalFundingFilter('ALL');
+    setGlobalStratifyBy('funding-status');
     setMinYearFilter(2017);
     setMaxYearFilter(2026);
   };
@@ -166,8 +208,8 @@ export default function App() {
           BiblioVOS Studio
         </a>
 
-        {/* Zone 2: 5 concise single-line text navigation links */}
-        <nav className="flex items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-400 overflow-x-auto">
+        {/* Zone 2: Concise single-line text navigation links */}
+        <nav className="flex items-center gap-5 text-sm font-medium text-slate-600 dark:text-slate-400 overflow-x-auto">
           <button
             onClick={() => setActiveModule('merger')}
             className={`py-1 transition-colors whitespace-nowrap shrink-0 border-b-2 ${
@@ -209,6 +251,16 @@ export default function App() {
             Sources & Authors
           </button>
           <button
+            onClick={() => setActiveModule('funding-metadata')}
+            className={`py-1 transition-colors whitespace-nowrap shrink-0 border-b-2 ${
+              activeModule === 'funding-metadata'
+                ? 'border-blue-600 text-slate-900 dark:text-white font-semibold'
+                : 'border-transparent hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            Funding & Metadata
+          </button>
+          <button
             onClick={() => setActiveModule('conceptual-rpys')}
             className={`py-1 transition-colors whitespace-nowrap shrink-0 border-b-2 ${
               activeModule === 'conceptual-rpys'
@@ -231,7 +283,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* Contextual Workspace Calibration & Filter Ribbon */}
+      {/* Contextual Workspace Calibration, Filter & Stratification Ribbon */}
       <div className="bg-slate-100/80 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 px-6 py-2">
         <div className="max-w-[1440px] mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex flex-wrap items-center gap-2 font-mono tabular-nums text-slate-600 dark:text-slate-400">
@@ -249,17 +301,35 @@ export default function App() {
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex items-center gap-1.5">
+              <span className="font-medium text-blue-600 dark:text-blue-400">Stratify By:</span>
+              <select
+                value={globalStratifyBy}
+                onChange={(e) => setGlobalStratifyBy(e.target.value as StratifyDimension)}
+                aria-label="Global stratification dimension"
+                className="px-2 py-1 text-xs bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded font-medium text-slate-900 dark:text-slate-100 max-w-[190px]"
+              >
+                {(Object.entries(STRATIFY_DIMENSION_LABELS) as [StratifyDimension, string][]).map(
+                  ([dim, label]) => (
+                    <option key={dim} value={dim}>
+                      {label}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+
             <div className="flex items-center gap-1.5">
               <Filter className="w-3.5 h-3.5 text-slate-400" />
-              <span className="text-slate-500">Source DB:</span>
+              <span className="text-slate-500">DB:</span>
               <select
                 value={globalDbFilter}
                 onChange={(e) => setGlobalDbFilter(e.target.value)}
                 aria-label="Global database filter"
                 className="px-2 py-1 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded"
               >
-                <option value="ALL">All Merged Databases</option>
+                <option value="ALL">All Databases</option>
                 <option value="Scopus">Scopus</option>
                 <option value="Web of Science">Web of Science</option>
                 <option value="PubMed">PubMed</option>
@@ -267,6 +337,39 @@ export default function App() {
                 <option value="CrossRef">CrossRef</option>
                 <option value="Dimensions">Dimensions</option>
                 <option value="RIS/BibTeX">RIS / BibTeX</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500">Subject:</span>
+              <select
+                value={globalSubjectFilter}
+                onChange={(e) => setGlobalSubjectFilter(e.target.value)}
+                aria-label="Global research subject filter"
+                className="px-2 py-1 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded max-w-[140px]"
+              >
+                <option value="ALL">All Subjects (SC/WC)</option>
+                {availableSubjects.map((subj) => (
+                  <option key={subj} value={subj}>
+                    {subj}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500">Funding:</span>
+              <select
+                value={globalFundingFilter}
+                onChange={(e) =>
+                  setGlobalFundingFilter(e.target.value as 'ALL' | 'FUNDED' | 'UNFUNDED')
+                }
+                aria-label="Global funding status filter"
+                className="px-2 py-1 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded"
+              >
+                <option value="ALL">All Records</option>
+                <option value="FUNDED">Funded Only (FU)</option>
+                <option value="UNFUNDED">Unfunded Only</option>
               </select>
             </div>
 
@@ -279,7 +382,7 @@ export default function App() {
                 value={minYearFilter}
                 onChange={(e) => setMinYearFilter(Number(e.target.value))}
                 aria-label="Start publication year"
-                className="w-16 px-1.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded text-center"
+                className="w-15 px-1.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded text-center"
               />
               <span>–</span>
               <input
@@ -289,7 +392,7 @@ export default function App() {
                 value={maxYearFilter}
                 onChange={(e) => setMaxYearFilter(Number(e.target.value))}
                 aria-label="End publication year"
-                className="w-16 px-1.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded text-center"
+                className="w-15 px-1.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded text-center"
               />
             </div>
 
@@ -322,13 +425,45 @@ export default function App() {
           />
         )}
 
-        {activeModule === 'vosviewer' && <VOSViewerStudio records={activeCorpus} />}
+        {activeModule === 'vosviewer' && (
+          <VOSViewerStudio
+            records={activeCorpus}
+            stratifyBy={globalStratifyBy}
+            onChangeStratifyBy={setGlobalStratifyBy}
+          />
+        )}
 
-        {activeModule === 'overview' && <OverviewAndSankeyView records={activeCorpus} />}
+        {activeModule === 'overview' && (
+          <OverviewAndSankeyView
+            records={activeCorpus}
+            stratifyBy={globalStratifyBy}
+            onChangeStratifyBy={setGlobalStratifyBy}
+          />
+        )}
 
-        {activeModule === 'sources-authors' && <SourcesAndAuthorsView records={activeCorpus} />}
+        {activeModule === 'sources-authors' && (
+          <SourcesAndAuthorsView
+            records={activeCorpus}
+            stratifyBy={globalStratifyBy}
+            onChangeStratifyBy={setGlobalStratifyBy}
+          />
+        )}
 
-        {activeModule === 'conceptual-rpys' && <ConceptualAndRPYSView records={activeCorpus} />}
+        {activeModule === 'funding-metadata' && (
+          <FundingAndMetadataView
+            records={activeCorpus}
+            stratifyBy={globalStratifyBy}
+            onChangeStratifyBy={setGlobalStratifyBy}
+          />
+        )}
+
+        {activeModule === 'conceptual-rpys' && (
+          <ConceptualAndRPYSView
+            records={activeCorpus}
+            stratifyBy={globalStratifyBy}
+            onChangeStratifyBy={setGlobalStratifyBy}
+          />
+        )}
       </main>
 
       {/* Export Unified Corpus Modal */}
@@ -363,7 +498,7 @@ export default function App() {
                       Bibliometrix & VOSviewer CSV (.csv)
                     </div>
                     <div className="text-[11px] text-slate-500">
-                      Harmonized columns (TI, AU, SO, PY, TC, DI, DE, ID, AB, C1, CR, DB)
+                      Harmonized columns (TI, AU, SO, PY, TC, DI, DE, ID, AB, C1, FU, FX, SC, OA, LA, PU, CR, DB)
                     </div>
                   </div>
                 </div>

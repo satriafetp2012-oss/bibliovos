@@ -489,9 +489,23 @@ export const DataMergerView: React.FC<DataMergerViewProps> = ({
                             <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mt-1 font-mono tabular-nums">
                               <span>{rec.docType}</span>
                               <span aria-hidden="true">·</span>
-                              <span>{rec.doi ? `DOI: ${rec.doi}` : rec.ut}</span>
+                              <span>{rec.openAccess || 'Closed'}</span>
                               <span aria-hidden="true">·</span>
-                              <span>{rec.authorKeywords.slice(0, 3).join(', ')}</span>
+                              <span>{rec.doi ? `DOI: ${rec.doi}` : rec.ut}</span>
+                              {(rec.researchSubjects ?? []).length > 0 && (
+                                <>
+                                  <span aria-hidden="true">·</span>
+                                  <span>{(rec.researchSubjects ?? []).slice(0, 2).join(', ')}</span>
+                                </>
+                              )}
+                              {(rec.fundingAgencies ?? []).length > 0 && (
+                                <>
+                                  <span aria-hidden="true">·</span>
+                                  <span className="text-emerald-700 dark:text-emerald-400">
+                                    Funded ({(rec.fundingAgencies ?? []).length})
+                                  </span>
+                                </>
+                              )}
                             </div>
                           </td>
                           <td className="py-3 px-3 text-slate-700 dark:text-slate-300 max-w-[180px] truncate">
@@ -532,6 +546,26 @@ export const DataMergerView: React.FC<DataMergerViewProps> = ({
                                     </span>
                                   </div>
                                   <div>
+                                    <span className="font-mono font-semibold text-slate-500">SC / WC (Research Subjects): </span>
+                                    <span className="text-slate-700 dark:text-slate-300">
+                                      {(rec.researchSubjects ?? []).join(' · ') || 'Unspecified'}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="font-mono font-semibold text-slate-500">FU (Funding Agencies): </span>
+                                    <span className="text-slate-700 dark:text-slate-300">
+                                      {(rec.fundingAgencies ?? []).join(' · ') || 'No external funding reported'}
+                                    </span>
+                                  </div>
+                                  {rec.fundingText && (
+                                    <div>
+                                      <span className="font-mono font-semibold text-slate-500">FX (Grant Acknowledgment): </span>
+                                      <span className="text-slate-600 dark:text-slate-400">
+                                        {rec.fundingText}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div>
                                     <span className="font-mono font-semibold text-slate-500">DE (Author Keywords): </span>
                                     <span className="text-slate-700 dark:text-slate-300">
                                       {rec.authorKeywords.join(' · ') || 'None'}
@@ -547,6 +581,12 @@ export const DataMergerView: React.FC<DataMergerViewProps> = ({
                                     <span className="font-mono font-semibold text-slate-500">C1 (Affiliations & Countries): </span>
                                     <span className="text-slate-700 dark:text-slate-300">
                                       {rec.affiliations.join(' ; ')} ({rec.countries.join(', ')})
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="font-mono font-semibold text-slate-500">OA / PU / LA (Extended Metadata): </span>
+                                    <span className="text-slate-700 dark:text-slate-300">
+                                      {rec.openAccess || 'Closed'} · Publisher: {rec.publisher || 'Unspecified'} · Language: {rec.language || 'English'}
                                     </span>
                                   </div>
                                 </div>
