@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   BibRecord,
   StratifyDimension
@@ -9,6 +9,7 @@ import {
   STRATIFY_DIMENSION_LABELS,
   STRATUM_PALETTE
 } from '../utils/bibliometricEngine';
+import { CardExportToolbar } from './ExportToolbar';
 
 export interface PieSliceItem {
   id: string;
@@ -110,6 +111,7 @@ export const InteractivePieDonutChart: React.FC<InteractivePieDonutChartProps> =
   const [chartStyle, setChartStyle] = useState<'donut' | 'pie'>('donut');
   const [metricBy, setMetricBy] = useState<'documents' | 'citations'>('documents');
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
 
   const totalValue = useMemo(() => {
     const sum = slices.reduce(
@@ -145,7 +147,11 @@ export const InteractivePieDonutChart: React.FC<InteractivePieDonutChartProps> =
     computedArcs[0];
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5 flex flex-col justify-between space-y-4">
+    <div
+      ref={cardRef}
+      data-export-enhanced="true"
+      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5 flex flex-col justify-between space-y-4"
+    >
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
@@ -154,6 +160,7 @@ export const InteractivePieDonutChart: React.FC<InteractivePieDonutChartProps> =
 
         <div className="flex flex-wrap items-center gap-1.5 shrink-0">
           {headerRight}
+          <CardExportToolbar targetRef={cardRef} title={title} />
           <div className="flex items-center gap-0.5 p-0.5 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded">
             <button
               onClick={() => setChartStyle('donut')}
@@ -344,6 +351,7 @@ export const StratifiedCohortPanel: React.FC<StratifiedCohortPanelProps> = ({
   moduleTitle = 'Multi-Dimensional Stratified Cohort Comparison'
 }) => {
   const [displayMode, setDisplayMode] = useState<'side-by-side' | 'stacked-annual'>('side-by-side');
+  const panelRef = useRef<HTMLDivElement | null>(null);
 
   const strata = useMemo(
     () => partitionCorpusByStrata(records, stratifyBy),
@@ -360,7 +368,11 @@ export const StratifiedCohortPanel: React.FC<StratifiedCohortPanelProps> = ({
   );
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5 space-y-4">
+    <div
+      ref={panelRef}
+      data-export-enhanced="true"
+      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5 space-y-4"
+    >
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
@@ -412,6 +424,12 @@ export const StratifiedCohortPanel: React.FC<StratifiedCohortPanelProps> = ({
               Stacked Annual Strata
             </button>
           </div>
+
+          <CardExportToolbar
+            targetRef={panelRef}
+            title={moduleTitle}
+            includeCsv={displayMode === 'side-by-side'}
+          />
         </div>
       </div>
 

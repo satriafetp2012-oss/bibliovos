@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Download,
   Sun,
@@ -31,6 +31,8 @@ import { OverviewAndSankeyView } from './components/OverviewAndSankeyView';
 import { SourcesAndAuthorsView } from './components/SourcesAndAuthorsView';
 import { ConceptualAndRPYSView } from './components/ConceptualAndRPYSView';
 import { FundingAndMetadataView } from './components/FundingAndMetadataView';
+import { QualityAndManuscriptView } from './components/QualityAndManuscriptView';
+import { WorkspaceAutoExportEnhancer } from './components/ExportToolbar';
 import { PWAInstallControl, OfflineIndicator } from './components/PWAInstallControl';
 
 type ActiveModule =
@@ -39,13 +41,15 @@ type ActiveModule =
   | 'overview'
   | 'sources-authors'
   | 'funding-metadata'
-  | 'conceptual-rpys';
+  | 'conceptual-rpys'
+  | 'quality-manuscript';
 
 const STORAGE_KEY_RECORDS = 'bibliovos_raw_records_v2';
 const STORAGE_KEY_SPLITS = 'bibliovos_split_pairs_v2';
 
 export default function App() {
   const [activeModule, setActiveModule] = useState<ActiveModule>('merger');
+  const mainWorkspaceRef = useRef<HTMLElement | null>(null);
   const [rawRecords, setRawRecords] = useState<BibRecord[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_RECORDS);
@@ -270,6 +274,16 @@ export default function App() {
           >
             Conceptual & RPYS
           </button>
+          <button
+            onClick={() => setActiveModule('quality-manuscript')}
+            className={`py-1 transition-colors whitespace-nowrap shrink-0 border-b-2 ${
+              activeModule === 'quality-manuscript'
+                ? 'border-blue-600 text-slate-900 dark:text-white font-semibold'
+                : 'border-transparent hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            Quality & Manuscript
+          </button>
         </nav>
 
         {/* Zone 3: 1 primary action */}
@@ -410,7 +424,15 @@ export default function App() {
       </div>
 
       {/* Main Content Viewport */}
-      <main className="flex-1 max-w-[1440px] w-full mx-auto px-6 py-6">
+      <main
+        ref={mainWorkspaceRef}
+        className="flex-1 max-w-[1440px] w-full mx-auto px-6 py-6"
+      >
+        <WorkspaceAutoExportEnhancer
+          workspaceRef={mainWorkspaceRef}
+          activeModuleKey={activeModule}
+        />
+
         {activeModule === 'merger' && (
           <DataMergerView
             rawRecords={rawRecords}
@@ -462,6 +484,17 @@ export default function App() {
             records={activeCorpus}
             stratifyBy={globalStratifyBy}
             onChangeStratifyBy={setGlobalStratifyBy}
+          />
+        )}
+
+        {activeModule === 'quality-manuscript' && (
+          <QualityAndManuscriptView
+            records={activeCorpus}
+            rawRecords={rawRecords}
+            conflictPairs={conflictPairs}
+            stratifyBy={globalStratifyBy}
+            onChangeStratifyBy={setGlobalStratifyBy}
+            onUpdateRawRecords={setRawRecords}
           />
         )}
       </main>
